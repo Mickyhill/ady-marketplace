@@ -1,0 +1,9 @@
+Drop your official AKSU logo file here, named exactly:
+
+    aksu-logo.png
+
+The navbar (src/components/NavBar.jsx) automatically loads it from
+"/aksu-logo.png" once it exists. Until then, it falls back to a plain
+letter badge.
+
+A square image (e.g. 200x200px) with a transparent background works best.

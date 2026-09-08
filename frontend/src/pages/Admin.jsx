@@ -1,0 +1,139 @@
+import React, { useEffect, useState } from "react";
+import { api } from "../api/client";
+import { formatNaira } from "../components/ListingCard";
+
+const TABS = ["Overview", "Users", "Listings", "Reports"];
+
+export default function Admin() {
+  const [tab, setTab] = useState("Overview");
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [listings, setListings] = useState([]);
+  const [reports, setReports] = useState([]);
+
+  function loadAll() {
+    api.getAdminStats().then(setStats).catch(() => {});
+    api.getAdminUsers().then((d) => setUsers(d.users)).catch(() => {});
+    api.getAdminListings().then((d) => setListings(d.listings)).catch(() => {});
+    api.getAdminReports().then((d) => setReports(d.reports)).catch(() => {});
+  }
+
+  useEffect(loadAll, []);
+
+  async function handleVerify(id, status) {
+    await api.verifyUser(id, status);
+    loadAll();
+  }
+
+  async function handleListingStatus(id, status) {
+    await api.setListingStatus(id, status);
+    loadAll();
+  }
+
+  async function handleFeature(id, featured) {
+    await api.setListingFeatured(id, featured);
+    loadAll();
+  }
+
+  async function handleResolve(id) {
+    await api.resolveReport(id);
+    loadAll();
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-10">
+      <h1 className="text-2xl font-semibold mb-6">Admin dashboard</h1>
+
+      <div className="flex gap-1 mb-6 border-b border-ink-300/40">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === t ? "border-brand-500 text-brand-600" : "border-transparent text-ink-500"}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "Overview" && stats && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            ["Total users", stats.users],
+            ["Verified users", stats.verifiedUsers],
+            ["Active listings", stats.activeListings],
+            ["Sold listings", stats.soldListings],
+            ["Unresolved reports", stats.unresolvedReports],
+          ].map(([label, value]) => (
+            <div key={label} className="border border-ink-300/40 rounded-lg p-4 bg-white">
+              <p className="text-2xl font-semibold">{value}</p>
+              <p className="text-xs text-ink-500">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "Users" && (
+        <div className="space-y-2">
+          {users.map((u) => (
+            <div key={u.id} className="flex items-center gap-3 border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{u.name} <span className="text-ink-500 font-normal">· {u.email}</span></p>
+                <p className="text-xs text-ink-500">{u.department} {u.faculty && `· ${u.faculty}`} {u.matricNumber && `· ${u.matricNumber}`}</p>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-ink-100">{u.verificationStatus}</span>
+              {u.verificationStatus !== "VERIFIED" && (
+                <button onClick={() => handleVerify(u.id, "VERIFIED")} className="text-xs bg-green-600 text-white rounded-md px-3 py-1.5">Verify</button>
+              )}
+              {u.verificationStatus === "PENDING" && (
+                <button onClick={() => handleVerify(u.id, "REJECTED")} className="text-xs border border-red-200 text-red-600 rounded-md px-3 py-1.5">Reject</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "Listings" && (
+        <div className="space-y-2">
+          {listings.map((l) => (
+            <div key={l.id} className="flex items-center gap-3 border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{l.title} <span className="text-brand-600">· {formatNaira(l.price)}</span></p>
+                <p className="text-xs text-ink-500">Seller: {l.seller.name} ({l.seller.email})</p>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-ink-100">{l.status.replace("_", " ")}</span>
+              <button onClick={() => handleFeature(l.id, !l.featured)} className="text-xs border border-ink-300 rounded-md px-3 py-1.5">
+                {l.featured ? "Unfeature" : "Feature"}
+              </button>
+              {l.status !== "REMOVED" ? (
+                <button onClick={() => handleListingStatus(l.id, "REMOVED")} className="text-xs border border-red-200 text-red-600 rounded-md px-3 py-1.5">Remove</button>
+              ) : (
+                <button onClick={() => handleListingStatus(l.id, "ACTIVE")} className="text-xs border border-green-200 text-green-700 rounded-md px-3 py-1.5">Restore</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "Reports" && (
+        <div className="space-y-2">
+          {reports.length === 0 && <p className="text-sm text-ink-500">No reports filed.</p>}
+          {reports.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{r.listing.title}</p>
+                <p className="text-xs text-ink-500">Reason: {r.reason} · Reported by {r.reporter.name}</p>
+              </div>
+              <span className={`text-xs px-2 py-1 rounded-full ${r.resolved ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                {r.resolved ? "Resolved" : "Open"}
+              </span>
+              {!r.resolved && (
+                <button onClick={() => handleResolve(r.id)} className="text-xs bg-brand-500 text-white rounded-md px-3 py-1.5">Mark resolved</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

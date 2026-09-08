@@ -1,0 +1,129 @@
+// AKSMarketPlace database schema
+// Default datasource is SQLite for zero-setup local development.
+// For production, switch provider to "postgresql" and set DATABASE_URL
+// to a Postgres connection string (Render/Railway/Supabase/RDS all work).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: SQLite doesn't support Prisma's native `enum` type (Postgres/MySQL
+// only), so these fields are plain Strings instead. The allowed values are
+// still enforced in the route handlers (see src/routes/*.js) — e.g. Role is
+// always "STUDENT" or "ADMIN", VerificationStatus is one of "UNVERIFIED" |
+// "PENDING" | "VERIFIED" | "REJECTED", etc. If you switch the datasource to
+// Postgres for production, you can restore real enums at that point.
+
+model User {
+  id                 String             @id @default(uuid())
+  name               String
+  email              String             @unique
+  phone              String?
+  passwordHash       String
+  department         String?
+  faculty            String?
+  matricNumber       String?
+  role               String             @default("STUDENT")
+  verificationStatus String             @default("UNVERIFIED")
+  avatarUrl          String?
+  bio                String?
+  rating             Float              @default(0)
+  ratingCount        Int                @default(0)
+  resetToken         String?
+  resetTokenExpires  DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  listings      Listing[]
+  sentMessages  Message[] @relation("SentMessages")
+  recvMessages  Message[] @relation("ReceivedMessages")
+  reportsFiled  Report[]  @relation("ReportsFiled")
+  reviewsGiven  Review[]  @relation("ReviewsGiven")
+  reviewsGot    Review[]  @relation("ReviewsReceived")
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  icon     String?
+  listings Listing[]
+}
+
+model Listing {
+  id          String            @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  condition   String            @default("GOOD")
+  location    String
+  status      String            @default("ACTIVE")
+  featured    Boolean           @default(false)
+  viewCount   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  seller      User      @relation(fields: [sellerId], references: [id])
+  sellerId    String
+  category    Category  @relation(fields: [categoryId], references: [id])
+  categoryId  String
+
+  images      ListingImage[]
+  messages    Message[]
+  reports     Report[]
+  reviews     Review[]
+}
+
+model ListingImage {
+  id        String   @id @default(uuid())
+  url       String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  listingId  String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId   String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId String
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  reason    String
+  details   String?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  listingId String
+  reporter  User     @relation("ReportsFiled", fields: [reporterId], references: [id])
+  reporterId String
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  itemMatched   Boolean
+  communication Int
+  experience    Int
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  listing       Listing  @relation(fields: [listingId], references: [id])
+  listingId     String
+  reviewer      User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewerId    String
+  seller        User     @relation("ReviewsReceived", fields: [sellerId], references: [id])
+  sellerId      String
+}
