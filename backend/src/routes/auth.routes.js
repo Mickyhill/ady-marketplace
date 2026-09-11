@@ -4,8 +4,16 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const prisma = require("../prismaClient");
 const { requireAuth } = require("../middleware/auth");
+const upload = require("../middleware/upload");
+const { getBadges } = require("../utils/trust");
 
 const router = express.Router();
+
+// AKSU matric number format: AK<2-digit admission year>/<faculty code>/<dept
+// code>/<3-digit serial>, e.g. "AK20/ENG/MEC/001". Case-insensitive. This
+// only checks the *shape* is plausible — it does not confirm the number
+// belongs to a real enrolled student (see the register route's comment).
+const MATRIC_NUMBER_PATTERN = /^AK\d{2}\/[A-Za-z]{2,6}\/[A-Za-z]{2,6}\/\d{2,5}$/i;
 
 function signToken(user) {
   return jwt.sign(
@@ -15,24 +23,36 @@ function signToken(user) {
   );
 }
 
-function publicUser(user) {
+function publicUser(user, badges) {
   const { passwordHash, resetToken, resetTokenExpires, ...safe } = user;
-  return safe;
+  return { ...safe, badges };
 }
 
 // POST /api/auth/register
-router.post("/register", async (req, res) => {
+// Expects multipart/form-data (not JSON) because it now requires a student
+// ID card photo upload alongside the regular fields.
+router.post("/register", upload.single("studentIdPhoto"), async (req, res) => {
   try {
     const { name, email, password, phone, department, faculty, matricNumber } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "name, email and password are required" });
+    if (!name || !email || !password || !matricNumber) {
+      return res.status(400).json({ error: "name, email, password and matric number are required" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "A photo of your student ID card is required" });
+    }
+    if (!MATRIC_NUMBER_PATTERN.test(matricNumber.trim())) {
+      return res.status(400).json({ error: "Matric number should look like AK20/ENG/MEC/001" });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
       return res.status(409).json({ error: "An account with this email already exists" });
+    }
+    const existingMatric = await prisma.user.findUnique({ where: { matricNumber: matricNumber.trim() } });
+    if (existingMatric) {
+      return res.status(409).json({ error: "This matric number is already registered to another account" });
     }
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -42,16 +62,18 @@ router.post("/register", async (req, res) => {
         phone,
         department,
         faculty,
-        matricNumber,
+        matricNumber: matricNumber.trim(),
+        studentIdPhotoUrl: `/uploads/${req.file.filename}`,
         passwordHash,
-        // In the MVP, matric number presence just queues the account for
-        // manual admin verification. Wire this up to a real school-email
-        // or matric-number check before relying on it for trust.
-        verificationStatus: matricNumber ? "PENDING" : "UNVERIFIED",
+        // Format-valid + unique matric number, plus an ID card photo, still
+        // isn't proof of real enrollment — it's a much stronger starting
+        // point than a bare text field, but an admin should actually look
+        // at the photo before clicking "Verify" in the Admin dashboard.
+        verificationStatus: "PENDING",
       },
     });
     const token = signToken(user);
-    res.status(201).json({ token, user: publicUser(user) });
+    res.status(201).json({ token, user: publicUser(user, getBadges(user, 0)) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Registration failed" });
@@ -74,7 +96,8 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
     const token = signToken(user);
-    res.json({ token, user: publicUser(user) });
+    const unresolvedDisputes = await prisma.dispute.count({ where: { sellerId: user.id, status: "OPEN" } });
+    res.json({ token, user: publicUser(user, getBadges(user, unresolvedDisputes)) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Login failed" });
@@ -85,7 +108,8 @@ router.post("/login", async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json({ user: publicUser(user) });
+  const unresolvedDisputes = await prisma.dispute.count({ where: { sellerId: user.id, status: "OPEN" } });
+  res.json({ user: publicUser(user, getBadges(user, unresolvedDisputes)) });
 });
 
 // POST /api/auth/forgot-password

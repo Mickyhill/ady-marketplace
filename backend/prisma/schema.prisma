@@ -1,7 +1,7 @@
-// AKSMarketPlace database schema
-// Default datasource is SQLite for zero-setup local development.
-// For production, switch provider to "postgresql" and set DATABASE_URL
-// to a Postgres connection string (Render/Railway/Supabase/RDS all work).
+// Database schema — using Postgres, which is what Render (and most real
+// hosting) provides. If you also want to develop locally against this same
+// database, point DATABASE_URL in your .env at the same Render Postgres
+// connection string — no separate local database needed.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,12 +12,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NOTE: SQLite doesn't support Prisma's native `enum` type (Postgres/MySQL
-// only), so these fields are plain Strings instead. The allowed values are
-// still enforced in the route handlers (see src/routes/*.js) — e.g. Role is
-// always "STUDENT" or "ADMIN", VerificationStatus is one of "UNVERIFIED" |
-// "PENDING" | "VERIFIED" | "REJECTED", etc. If you switch the datasource to
-// Postgres for production, you can restore real enums at that point.
+// NOTE: fields like `role`, `verificationStatus`, `condition`, and `status`
+// are plain Strings rather than native Prisma enums — this keeps the schema
+// portable between SQLite (used earlier in local dev) and Postgres without
+// changing anything else. Allowed values are enforced in the route handlers
+// (see src/routes/*.js).
 
 model User {
   id                 String             @id @default(uuid())
@@ -27,9 +26,12 @@ model User {
   passwordHash       String
   department         String?
   faculty            String?
-  matricNumber       String?
+  matricNumber       String?            @unique
+  studentIdPhotoUrl  String?
   role               String             @default("STUDENT")
-  verificationStatus String             @default("UNVERIFIED")
+  verificationStatus String             @default("UNVERIFIED") // drives "AKSU Verified" badge: VERIFIED = badge shown
+  phoneVerified      Boolean            @default(false)         // "Phone Verified" badge — manually toggled by admin until Phase 2 wires up real OTP
+  identityVerified   Boolean            @default(false)         // "Identity Verified" badge — manually toggled by admin (stronger check than matric+ID photo alone)
   avatarUrl          String?
   bio                String?
   rating             Float              @default(0)
@@ -45,6 +47,8 @@ model User {
   reportsFiled  Report[]  @relation("ReportsFiled")
   reviewsGiven  Review[]  @relation("ReviewsGiven")
   reviewsGot    Review[]  @relation("ReviewsReceived")
+  disputesFiled Dispute[] @relation("DisputesFiled")
+  disputesAgainst Dispute[] @relation("DisputesAgainst")
 }
 
 model Category {
@@ -63,6 +67,7 @@ model Listing {
   location    String
   status      String            @default("ACTIVE")
   featured    Boolean           @default(false)
+  itemVerified Boolean          @default(false) // "Item Inspected" badge — SEPARATE from seller verification (a verified student != a verified item). Admin sets this after a real physical check, per item.
   viewCount   Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -76,6 +81,7 @@ model Listing {
   messages    Message[]
   reports     Report[]
   reviews     Review[]
+  disputes    Dispute[]
 }
 
 model ListingImage {
@@ -126,4 +132,24 @@ model Review {
   reviewerId    String
   seller        User     @relation("ReviewsReceived", fields: [sellerId], references: [id])
   sellerId      String
+}
+
+// A dispute is a specific, this-transaction-went-wrong complaint (e.g. "the
+// phone I got isn't the one in the listing photos") — distinct from a Report,
+// which flags a listing in general (scam, prohibited item, etc.) without
+// necessarily having transacted. Disputes are reviewed by an admin, who sees
+// the full context: the listing, the message thread, and both accounts.
+model Dispute {
+  id        String   @id @default(uuid())
+  reason    String
+  details   String?
+  status    String   @default("OPEN") // "OPEN" | "RESOLVED" | "REJECTED"
+  createdAt DateTime @default(now())
+
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  listingId String
+  buyer     User     @relation("DisputesFiled", fields: [buyerId], references: [id])
+  buyerId   String
+  seller    User     @relation("DisputesAgainst", fields: [sellerId], references: [id])
+  sellerId  String
 }

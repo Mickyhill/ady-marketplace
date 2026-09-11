@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { resolveUploadUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { Camera, User as UserIcon } from "lucide-react";
+import Badges from "../components/Badges";
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -11,6 +13,7 @@ export default function Profile() {
   const isOwnProfile = !viewingId || viewingId === user?.id;
 
   const [profile, setProfile] = useState(isOwnProfile ? user : null);
+  const [reviews, setReviews] = useState([]);
   const [form, setForm] = useState({ name: "", phone: "", department: "", faculty: "", bio: "" });
   const [avatarFile, setAvatarFile] = useState(null);
   const [status, setStatus] = useState("");
@@ -24,6 +27,12 @@ export default function Profile() {
       api.getUser(viewingId).then((d) => setProfile(d.user));
     }
   }, [viewingId, user]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      api.getSellerReviews(profile.id).then((d) => setReviews(d.reviews)).catch(() => {});
+    }
+  }, [profile?.id]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -45,18 +54,38 @@ export default function Profile() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-10">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-16 h-16 rounded-full bg-ink-100 overflow-hidden">
-          {profile.avatarUrl && <img src={resolveUploadUrl(profile.avatarUrl)} className="w-full h-full object-cover" />}
-        </div>
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          type="button"
+          onClick={() => isOwnProfile && setEditing(true)}
+          className={`relative w-20 h-20 rounded-full bg-ink-100 overflow-hidden shrink-0 flex items-center justify-center ${isOwnProfile ? "cursor-pointer group" : ""}`}
+          aria-label={isOwnProfile ? "Add or change profile photo" : undefined}
+        >
+          {profile.avatarUrl ? (
+            <img src={resolveUploadUrl(profile.avatarUrl)} className="w-full h-full object-cover" />
+          ) : (
+            <UserIcon size={32} className="text-ink-300" />
+          )}
+          {isOwnProfile && (
+            <span className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+              <Camera size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            </span>
+          )}
+        </button>
         <div>
           <h1 className="text-xl font-semibold">{profile.name}</h1>
-          <p className="text-sm text-ink-500">
-            {profile.verificationStatus === "VERIFIED" ? "✓ Verified student" : "Unverified"}
-            {profile.ratingCount > 0 && ` · ${profile.rating.toFixed(1)}★ (${profile.ratingCount} reviews)`}
-          </p>
+          {profile.ratingCount > 0 && (
+            <p className="text-sm text-ink-500">{profile.rating.toFixed(1)}★ ({profile.ratingCount} reviews)</p>
+          )}
+          {isOwnProfile && !profile.avatarUrl && (
+            <button onClick={() => setEditing(true)} className="text-xs text-brand-600 hover:underline mt-1">
+              + Add a profile photo
+            </button>
+          )}
         </div>
       </div>
+
+      <div className="mb-6"><Badges badges={profile.badges} /></div>
 
       {profile.bio && <p className="text-sm mb-6">{profile.bio}</p>}
 
@@ -102,6 +131,23 @@ export default function Profile() {
       )}
 
       {status && <p className="text-sm text-ink-500 mt-3">{status}</p>}
+
+      {reviews.length > 0 && (
+        <div className="mt-8 border-t border-ink-300/40 pt-6">
+          <h2 className="text-sm font-semibold mb-3">Reviews ({reviews.length})</h2>
+          <div className="space-y-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="text-sm border border-ink-300/40 rounded-md p-3">
+                <p className="font-medium">{r.reviewer.name} <span className="text-ink-500 font-normal">on {r.listing.title}</span></p>
+                <p className="text-xs text-ink-500 mt-1">
+                  {r.itemMatched ? "✓ Item matched description" : "✗ Item didn't match description"} · Communication {r.communication}/5 · Experience {r.experience}/5
+                </p>
+                {r.comment && <p className="mt-1">{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

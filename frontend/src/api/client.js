@@ -45,7 +45,7 @@ async function request(path, { method = "GET", body, isMultipart = false } = {})
 
 export const api = {
   // auth
-  register: (payload) => request("/auth/register", { method: "POST", body: payload }),
+  register: (formData) => request("/auth/register", { method: "POST", body: formData, isMultipart: true }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
   me: () => request("/auth/me"),
   forgotPassword: (email) => request("/auth/forgot-password", { method: "POST", body: { email } }),
@@ -78,15 +78,28 @@ export const api = {
   // reports
   fileReport: (payload) => request("/reports", { method: "POST", body: payload }),
 
+  // reviews
+  createReview: (payload) => request("/reviews", { method: "POST", body: payload }),
+  getSellerReviews: (sellerId) => request(`/reviews/seller/${sellerId}`),
+
+  // disputes
+  openDispute: (payload) => request("/disputes", { method: "POST", body: payload }),
+  getMyDisputes: () => request("/disputes/mine"),
+
   // admin
   getAdminStats: () => request("/admin/stats"),
   getAdminUsers: () => request("/admin/users"),
   verifyUser: (id, status) => request(`/admin/users/${id}/verify`, { method: "PATCH", body: { status } }),
+  setPhoneVerified: (id, verified) => request(`/admin/users/${id}/phone`, { method: "PATCH", body: { verified } }),
+  setIdentityVerified: (id, verified) => request(`/admin/users/${id}/identity`, { method: "PATCH", body: { verified } }),
   getAdminListings: () => request("/admin/listings"),
   setListingStatus: (id, status) => request(`/admin/listings/${id}/status`, { method: "PATCH", body: { status } }),
   setListingFeatured: (id, featured) => request(`/admin/listings/${id}/feature`, { method: "PATCH", body: { featured } }),
+  setItemInspected: (id, inspected) => request(`/admin/listings/${id}/inspect`, { method: "PATCH", body: { inspected } }),
   getAdminReports: () => request("/admin/reports"),
   resolveReport: (id) => request(`/admin/reports/${id}/resolve`, { method: "PATCH" }),
+  getAdminDisputes: () => request("/admin/disputes"),
+  resolveDispute: (id, status) => request(`/admin/disputes/${id}/resolve`, { method: "PATCH", body: { status } }),
 };
 
 export function setToken(token) {

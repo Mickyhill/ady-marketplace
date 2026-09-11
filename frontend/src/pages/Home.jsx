@@ -3,6 +3,7 @@ import { Star, Search } from "lucide-react";
 import { api } from "../api/client";
 import ListingCard from "../components/ListingCard";
 import { getCategoryIcon } from "../components/categoryIcons";
+import SafetyTips from "../components/SafetyTips";
 
 const FALLBACK_CATEGORIES = [
   { id: "Furniture", name: "Furniture" },
@@ -156,6 +157,8 @@ export default function Home() {
             {listings.map((l) => <ListingCard key={l.id} listing={l} />)}
           </div>
         )}
+
+        <SafetyTips className="mt-10" />
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ const categoryRoutes = require("./routes/categories.routes");
 const listingRoutes = require("./routes/listings.routes");
 const messageRoutes = require("./routes/messages.routes");
 const reportRoutes = require("./routes/reports.routes");
+const reviewRoutes = require("./routes/reviews.routes");
+const disputeRoutes = require("./routes/disputes.routes");
 const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
@@ -29,6 +31,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/disputes", disputeRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Central error handler (multer errors, etc.)

@@ -8,6 +8,8 @@ export default function Register() {
   const [form, setForm] = useState({
     name: "", email: "", password: "", phone: "", department: "", faculty: "", matricNumber: "",
   });
+  const [idPhoto, setIdPhoto] = useState(null);
+  const [idPhotoPreview, setIdPhotoPreview] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -15,12 +17,25 @@ export default function Register() {
     return (e) => setForm({ ...form, [field]: e.target.value });
   }
 
+  function handlePhotoChange(e) {
+    const file = e.target.files[0];
+    setIdPhoto(file || null);
+    setIdPhotoPreview(file ? URL.createObjectURL(file) : "");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (!idPhoto) {
+      setError("Please upload a photo of your student ID card.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await register(form);
+      const formData = new FormData();
+      Object.entries(form).forEach(([k, v]) => formData.append(k, v));
+      formData.append("studentIdPhoto", idPhoto);
+      await register(formData);
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -63,9 +78,23 @@ export default function Register() {
           </div>
         </div>
         <div>
-          <label className="text-sm font-medium block mb-1">Matric number (optional)</label>
-          <input value={form.matricNumber} onChange={update("matricNumber")} className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm" />
-          <p className="text-xs text-ink-500 mt-1">Adding this queues your account for admin verification and unlocks a verified badge.</p>
+          <label className="text-sm font-medium block mb-1">Matric number</label>
+          <input
+            required
+            value={form.matricNumber}
+            onChange={update("matricNumber")}
+            placeholder="AK20/ENG/MEC/001"
+            className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm"
+          />
+          <p className="text-xs text-ink-500 mt-1">Format: AK&lt;year&gt;/&lt;faculty&gt;/&lt;dept&gt;/&lt;number&gt;. Only visible to admins — not shown on your public profile.</p>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">Student ID card photo</label>
+          <input required type="file" accept="image/*" onChange={handlePhotoChange} className="w-full text-sm" />
+          <p className="text-xs text-ink-500 mt-1">An admin checks this against your matric number before verifying your account. Only visible to admins.</p>
+          {idPhotoPreview && (
+            <img src={idPhotoPreview} className="mt-2 w-32 h-20 object-cover rounded-md border border-ink-300/40" />
+          )}
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button

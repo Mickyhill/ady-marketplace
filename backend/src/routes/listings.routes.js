@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../prismaClient");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getBadges } = require("../utils/trust");
 
 const router = express.Router();
 
@@ -65,10 +66,17 @@ router.get("/:id", optionalAuth, async (req, res) => {
     include: {
       images: true,
       category: true,
-      seller: { select: { id: true, name: true, verificationStatus: true, rating: true, ratingCount: true, avatarUrl: true } },
+      seller: {
+        select: {
+          id: true, name: true, verificationStatus: true, phoneVerified: true, identityVerified: true,
+          rating: true, ratingCount: true, avatarUrl: true,
+        },
+      },
     },
   });
   if (!listing) return res.status(404).json({ error: "Listing not found" });
+  const unresolvedDisputes = await prisma.dispute.count({ where: { sellerId: listing.seller.id, status: "OPEN" } });
+  listing.seller.badges = getBadges(listing.seller, unresolvedDisputes);
   // fire-and-forget view count bump
   prisma.listing.update({ where: { id: listing.id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
   res.json({ listing });

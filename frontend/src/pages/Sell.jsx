@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import SafetyTips from "../components/SafetyTips";
 
 export default function Sell() {
   const navigate = useNavigate();
@@ -50,7 +51,8 @@ export default function Sell() {
   return (
     <div className="max-w-lg mx-auto px-4 py-10">
       <h1 className="text-2xl font-semibold mb-1">List an item</h1>
-      <p className="text-sm text-ink-500 mb-6">Good photos and an honest condition description sell faster.</p>
+      <p className="text-sm text-ink-500 mb-4">Good photos and an honest condition description sell faster.</p>
+      <SafetyTips className="mb-6" />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
