@@ -3,6 +3,7 @@ const prisma = require("../prismaClient");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const { getBadges } = require("../utils/trust");
+const { checkAndRecordImage } = require("../services/duplicatePhotoCheck");
 
 const router = express.Router();
 
@@ -98,13 +99,25 @@ router.post("/", requireAuth, upload.array("images", 6), async (req, res) => {
         location,
         sellerId: req.user.id,
         categoryId,
-        images: {
-          create: (req.files || []).map((f) => ({ url: `/uploads/${f.filename}` })),
-        },
       },
-      include: { images: true, category: true },
+      include: { category: true },
     });
-    res.status(201).json({ listing });
+
+    // Create each image individually (rather than as a nested batch) so we
+    // can reliably pair each file's disk path with its own new row's id —
+    // needed for duplicate-photo hashing (Phase 2) to hash the right file.
+    const images = [];
+    for (const file of req.files || []) {
+      const image = await prisma.listingImage.create({
+        data: { url: `/uploads/${file.filename}`, listingId: listing.id },
+      });
+      images.push(image);
+      // Fire-and-forget: hashing is slower than a DB write and shouldn't
+      // block the listing from going live. Errors are caught internally.
+      checkAndRecordImage(image.id, file.path).catch(() => {});
+    }
+
+    res.status(201).json({ listing: { ...listing, images } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not create listing" });

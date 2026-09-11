@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../prismaClient");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 const { getBadges, computeRiskLevel } = require("../utils/trust");
+const { releaseTransactionFunds } = require("./transactions.routes");
 
 const router = express.Router();
 
@@ -31,12 +32,12 @@ router.get("/users", async (req, res) => {
     },
   });
 
-  // Tally unresolved reports and open disputes per seller in one pass each,
-  // rather than one query per user (this dataset is small for now, but
-  // still worth avoiding an N+1 pattern from the start).
-  const [unresolvedReports, openDisputes] = await Promise.all([
+  // Tally unresolved reports, open disputes, and unresolved risk flags per
+  // user in one pass each, rather than one query per user.
+  const [unresolvedReports, openDisputes, unresolvedFlags] = await Promise.all([
     prisma.report.findMany({ where: { resolved: false }, select: { listing: { select: { sellerId: true } } } }),
     prisma.dispute.findMany({ where: { status: "OPEN" }, select: { sellerId: true } }),
+    prisma.riskFlag.findMany({ where: { resolved: false, userId: { not: null } }, select: { userId: true, severity: true } }),
   ]);
   const reportCounts = {};
   unresolvedReports.forEach((r) => {
@@ -46,6 +47,12 @@ router.get("/users", async (req, res) => {
   const disputeCounts = {};
   openDisputes.forEach((d) => {
     disputeCounts[d.sellerId] = (disputeCounts[d.sellerId] || 0) + 1;
+  });
+  const flagCounts = {};
+  unresolvedFlags.forEach((f) => {
+    if (!flagCounts[f.userId]) flagCounts[f.userId] = { yellow: 0, red: 0 };
+    if (f.severity === "RED") flagCounts[f.userId].red += 1;
+    else flagCounts[f.userId].yellow += 1;
   });
 
   const enriched = users.map((u) => {
@@ -59,6 +66,7 @@ router.get("/users", async (req, res) => {
         unresolvedReportsAgainst: reportCounts[u.id] || 0,
         unresolvedDisputesAgainst,
         accountAgeDays,
+        unresolvedRiskFlags: flagCounts[u.id] || { yellow: 0, red: 0 },
       }).level, // only the level (LOW/NORMAL/REVIEW/HIGH) leaves this endpoint, never the raw score
     };
   });
@@ -167,6 +175,7 @@ router.get("/disputes", async (req, res) => {
       listing: { select: { id: true, title: true, price: true, status: true, images: true } },
       buyer: { select: { id: true, name: true, email: true } },
       seller: { select: { id: true, name: true, email: true } },
+      transaction: { select: { id: true, status: true, totalAmount: true } },
     },
   });
 
@@ -199,6 +208,46 @@ router.patch("/disputes/:id/resolve", async (req, res) => {
   }
   const dispute = await prisma.dispute.update({ where: { id: req.params.id }, data: { status } });
   res.json({ dispute });
+});
+
+// GET /api/admin/risk-flags — automated Phase 2 fraud signals (device/photo)
+router.get("/risk-flags", async (req, res) => {
+  const flags = await prisma.riskFlag.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      listing: { select: { id: true, title: true } },
+    },
+  });
+  res.json({ flags });
+});
+
+// PATCH /api/admin/risk-flags/:id/resolve
+router.patch("/risk-flags/:id/resolve", async (req, res) => {
+  const flag = await prisma.riskFlag.update({ where: { id: req.params.id }, data: { resolved: true } });
+  res.json({ flag });
+});
+
+// PATCH /api/admin/disputes/:id/release-funds — explicit admin action to
+// release a disputed transaction's held funds to the seller. Deliberately
+// a separate, explicit click rather than something triggered automatically
+// by changing the dispute's status — this moves real money.
+router.patch("/disputes/:id/release-funds", async (req, res) => {
+  try {
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: req.params.id },
+      include: { transaction: true },
+    });
+    if (!dispute) return res.status(404).json({ error: "Dispute not found" });
+    if (!dispute.transaction) {
+      return res.status(400).json({ error: "This dispute has no linked payment to release" });
+    }
+    await releaseTransactionFunds(dispute.transaction.id);
+    res.json({ message: "Funds released to seller" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Could not release funds" });
+  }
 });
 
 module.exports = router;

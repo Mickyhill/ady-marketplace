@@ -29,7 +29,13 @@ function getBadges(user, unresolvedDisputeCount = 0) {
 // Simple, explainable rule-based risk score — ADMIN-ONLY, never exposed to
 // regular users or in any public API response. Deliberately not AI/ML:
 // transparent, auditable rules an admin can understand and adjust.
-function computeRiskLevel({ user, unresolvedReportsAgainst = 0, unresolvedDisputesAgainst = 0, accountAgeDays = 0 }) {
+function computeRiskLevel({
+  user,
+  unresolvedReportsAgainst = 0,
+  unresolvedDisputesAgainst = 0,
+  accountAgeDays = 0,
+  unresolvedRiskFlags = { yellow: 0, red: 0 }, // Phase 2: device/duplicate-photo signals
+}) {
   let score = 50; // start at "Normal"
 
   if (user.verificationStatus === "VERIFIED") score += 20;
@@ -40,6 +46,8 @@ function computeRiskLevel({ user, unresolvedReportsAgainst = 0, unresolvedDisput
   if (unresolvedReportsAgainst > 0) score -= 20 * unresolvedReportsAgainst;
   if (unresolvedDisputesAgainst > 0) score -= 30 * unresolvedDisputesAgainst;
   if (accountAgeDays < 7) score -= 10;
+  score -= 10 * (unresolvedRiskFlags.yellow || 0);
+  score -= 25 * (unresolvedRiskFlags.red || 0);
 
   score = Math.max(0, Math.min(100, score));
 

@@ -26,6 +26,21 @@ router.post("/", requireAuth, async (req, res) => {
         sellerId: listing.sellerId,
       },
     });
+
+    // If this buyer paid for this exact listing through the escrow flow
+    // (Phase 3) and funds are still held, freeze that transaction too —
+    // covers the case where someone opens a dispute from the listing page
+    // rather than from the transaction's own dispute button.
+    const heldTransaction = await prisma.transaction.findFirst({
+      where: { listingId, buyerId: req.user.id, sellerId: listing.sellerId, status: "HELD" },
+    });
+    if (heldTransaction) {
+      await prisma.transaction.update({
+        where: { id: heldTransaction.id },
+        data: { status: "DISPUTED", disputeId: dispute.id },
+      });
+    }
+
     res.status(201).json({ dispute });
   } catch (err) {
     console.error(err);

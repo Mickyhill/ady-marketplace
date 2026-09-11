@@ -21,14 +21,16 @@ router.post("/", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "You can't review your own listing" });
     }
 
-    // Require that the reviewer actually messaged the seller about this
-    // listing — the closest signal we have to "this was a real transaction"
-    // without a formal order/checkout system in place yet.
-    const hasMessaged = await prisma.message.findFirst({
-      where: { listingId, senderId: req.user.id, receiverId: listing.sellerId },
-    });
-    if (!hasMessaged) {
-      return res.status(403).json({ error: "You can only review listings you've messaged the seller about" });
+    // Require some evidence this was a real transaction — either the
+    // reviewer messaged the seller about this listing, or (Phase 3) they
+    // actually paid for it through the escrow flow, which may not involve
+    // any prior message if they used a direct "Buy Now" purchase.
+    const [hasMessaged, hasTransaction] = await Promise.all([
+      prisma.message.findFirst({ where: { listingId, senderId: req.user.id, receiverId: listing.sellerId } }),
+      prisma.transaction.findFirst({ where: { listingId, buyerId: req.user.id, sellerId: listing.sellerId } }),
+    ]);
+    if (!hasMessaged && !hasTransaction) {
+      return res.status(403).json({ error: "You can only review listings you've messaged the seller about or purchased" });
     }
 
     const existing = await prisma.review.findFirst({ where: { listingId, reviewerId: req.user.id } });

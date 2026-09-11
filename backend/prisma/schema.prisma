@@ -30,8 +30,12 @@ model User {
   studentIdPhotoUrl  String?
   role               String             @default("STUDENT")
   verificationStatus String             @default("UNVERIFIED") // drives "AKSU Verified" badge: VERIFIED = badge shown
-  phoneVerified      Boolean            @default(false)         // "Phone Verified" badge — manually toggled by admin until Phase 2 wires up real OTP
+  phoneVerified      Boolean            @default(false)         // "Phone Verified" badge — set by Phase 2's real OTP flow, or manually by admin as a fallback
+  phoneOtpCode       String?                                     // hashed OTP (bcrypt), never plaintext
+  phoneOtpExpiresAt  DateTime?
+  phoneOtpAttempts   Int                @default(0)              // rate-limit guard
   identityVerified   Boolean            @default(false)         // "Identity Verified" badge — manually toggled by admin (stronger check than matric+ID photo alone)
+  paystackSubaccountCode String?                                 // set once a seller completes Paystack subaccount onboarding (Phase 3)
   avatarUrl          String?
   bio                String?
   rating             Float              @default(0)
@@ -49,6 +53,10 @@ model User {
   reviewsGot    Review[]  @relation("ReviewsReceived")
   disputesFiled Dispute[] @relation("DisputesFiled")
   disputesAgainst Dispute[] @relation("DisputesAgainst")
+  deviceFingerprints DeviceFingerprint[]
+  riskFlags     RiskFlag[]
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
 }
 
 model Category {
@@ -82,13 +90,21 @@ model Listing {
   reports     Report[]
   reviews     Review[]
   disputes    Dispute[]
+  riskFlags   RiskFlag[]
+  transactions Transaction[]
 }
 
 model ListingImage {
   id        String   @id @default(uuid())
   url       String
+  perceptualHash String? // for duplicate/stolen photo detection (Phase 2)
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   listingId String
+
+  flaggedAsOriginal DuplicateImageFlag[] @relation("OriginalImage")
+  flaggedAsSuspect  DuplicateImageFlag[] @relation("SuspectImage")
+
+  @@index([perceptualHash])
 }
 
 model Message {
@@ -152,4 +168,98 @@ model Dispute {
   buyerId   String
   seller    User     @relation("DisputesAgainst", fields: [sellerId], references: [id])
   sellerId  String
+
+  transaction Transaction? // set if this dispute originated from a paid Transaction (Phase 3)
+}
+
+// ============================================================
+// PHASE 2: fraud-signal features
+// ============================================================
+
+// One row per (device, user) pairing seen. A device fingerprint shared
+// across multiple DISTINCT users is a signal of possible multi-accounting.
+model DeviceFingerprint {
+  id          String   @id @default(uuid())
+  fingerprint String   // hashed client-side device signal, never raw
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+  ipHash      String?  // hashed, not raw IP — data minimization
+
+  @@index([fingerprint])
+  @@unique([fingerprint, userId])
+}
+
+// Records a likely duplicate/stolen photo match between two listing images.
+model DuplicateImageFlag {
+  id              String       @id @default(uuid())
+  originalImage   ListingImage @relation("OriginalImage", fields: [originalImageId], references: [id])
+  originalImageId String
+  suspectImage    ListingImage @relation("SuspectImage", fields: [suspectImageId], references: [id])
+  suspectImageId  String
+  hammingDistance Int          // similarity score, lower = more similar
+  reviewed        Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+}
+
+// Automated fraud-signal flags (multi-account devices, duplicate photos),
+// separate from admin-reviewed Reports/Disputes filed by users. Feeds into
+// the admin risk level shown in the Admin dashboard (see src/utils/trust.js).
+model RiskFlag {
+  id        String   @id @default(uuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  listing   Listing? @relation(fields: [listingId], references: [id])
+  listingId String?
+  type      String   // "MULTI_ACCOUNT_DEVICE" | "DUPLICATE_PHOTO"
+  severity  String   // "YELLOW" | "RED"
+  details   String   // human-readable, admin-only
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// PHASE 3: escrow-style payments (Paystack)
+// ============================================================
+
+model Transaction {
+  id        String  @id @default(uuid())
+  listing   Listing @relation(fields: [listingId], references: [id])
+  listingId String
+  buyer     User    @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  buyerId   String
+  seller    User    @relation("SellerTransactions", fields: [sellerId], references: [id])
+  sellerId  String
+
+  itemAmount   Int // kobo, not naira — avoids float rounding on money
+  platformFee  Int // kobo
+  totalAmount  Int // kobo, itemAmount + platformFee
+
+  status String @default("PENDING")
+  // PENDING -> HELD -> RELEASED
+  //         -> DISPUTED -> REFUNDED | RELEASED (after admin resolution)
+
+  providerReference  String? @unique // Paystack transaction reference
+  providerSubaccount String?         // seller's Paystack subaccount code, if payment was auto-split
+
+  dispute   Dispute? @relation(fields: [disputeId], references: [id])
+  disputeId String?  @unique
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  releasedAt  DateTime?
+  refundedAt  DateTime?
+}
+
+// Raw webhook log for auditing/replay/debugging. Never trust webhook data
+// without verifying its signature first (see src/services/paystack.js).
+model PaymentWebhookEvent {
+  id          String    @id @default(uuid())
+  provider    String    // "PAYSTACK"
+  eventType   String
+  rawPayload  String    // JSON string, for audit trail
+  signatureOk Boolean
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
 }
