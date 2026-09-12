@@ -35,7 +35,7 @@ export default function App() {
         </Routes>
       </main>
       <footer className="border-t border-ink-300/40 py-6 text-center text-xs text-ink-500">
-        AKSMarketPlace — built by and for AKSU students.
+        ADYMarketPlace — built by and for AKSU students.
       </footer>
     </div>
   );
