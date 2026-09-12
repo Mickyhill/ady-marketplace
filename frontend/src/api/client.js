@@ -2,7 +2,7 @@
 // http://localhost:4000 automatically. Once deployed, the frontend and
 // backend live on different domains, so set VITE_API_BASE_URL (in a .env
 // file, or as an env var in your hosting provider) to the backend's full
-// URL, e.g. "https://aksmarketplace-api.onrender.com/api".
+// URL, e.g. "https://ady-marketplace-api.onrender.com/api".
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 // Uploaded images (listing photos, avatars) come back from the API as paths
@@ -54,6 +54,7 @@ export const api = {
   // users
   getUser: (id) => request(`/users/${id}`),
   updateProfile: (formData) => request("/users/me/update", { method: "PATCH", body: formData, isMultipart: true }),
+  deleteAccount: () => request("/users/me", { method: "DELETE" }),
 
   // categories
   getCategories: () => request("/categories"),
@@ -100,6 +101,26 @@ export const api = {
   resolveReport: (id) => request(`/admin/reports/${id}/resolve`, { method: "PATCH" }),
   getAdminDisputes: () => request("/admin/disputes"),
   resolveDispute: (id, status) => request(`/admin/disputes/${id}/resolve`, { method: "PATCH", body: { status } }),
+  releaseDisputeFunds: (id) => request(`/admin/disputes/${id}/release-funds`, { method: "PATCH" }),
+  getAdminRiskFlags: () => request("/admin/risk-flags"),
+  resolveRiskFlag: (id) => request(`/admin/risk-flags/${id}/resolve`, { method: "PATCH" }),
+
+  // phone verification (Phase 2)
+  sendPhoneOtp: (phone) => request("/auth/phone/send-otp", { method: "POST", body: { phone } }),
+  verifyPhoneOtp: (code) => request("/auth/phone/verify-otp", { method: "POST", body: { code } }),
+
+  // device fingerprinting (Phase 2) — silent background signal, not user-facing
+  registerDevice: (fingerprint) => request("/device/register", { method: "POST", body: { fingerprint } }),
+
+  // escrow payments (Phase 3)
+  createTransaction: (listingId) => request("/transactions", { method: "POST", body: { listingId } }),
+  getTransaction: (id) => request(`/transactions/${id}`),
+  getMyTransactionForListing: (listingId) => request(`/transactions/mine/${listingId}`),
+  confirmTransactionReceived: (id) => request(`/transactions/${id}/confirm-received`, { method: "POST" }),
+  disputeTransaction: (id, reason, details) => request(`/transactions/${id}/dispute`, { method: "POST", body: { reason, details } }),
+
+  // paid listing promotion
+  createBoost: (listingId, durationDays) => request("/boosts", { method: "POST", body: { listingId, durationDays } }),
 };
 
 export function setToken(token) {

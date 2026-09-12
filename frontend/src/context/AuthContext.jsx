@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api, setToken, clearToken } from "../api/client";
+import { getDeviceFingerprint } from "../utils/deviceFingerprint";
 
 const AuthContext = createContext(null);
+
+// Fire-and-forget: device recording is a background fraud-signal, never a
+// user-facing feature, so failures here should never surface as an error.
+function recordDeviceSilently() {
+  getDeviceFingerprint()
+    .then((fp) => api.registerDevice(fp))
+    .catch(() => {});
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -24,6 +33,7 @@ export function AuthProvider({ children }) {
     const data = await api.login({ email, password });
     setToken(data.token);
     setUser(data.user);
+    recordDeviceSilently();
     return data.user;
   }
 
@@ -31,6 +41,7 @@ export function AuthProvider({ children }) {
     const data = await api.register(payload);
     setToken(data.token);
     setUser(data.user);
+    recordDeviceSilently();
     return data.user;
   }
 
