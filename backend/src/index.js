@@ -16,6 +16,7 @@ const adminRoutes = require("./routes/admin.routes");
 const otpRoutes = require("./routes/otp.routes");
 const deviceRoutes = require("./routes/deviceFingerprint.routes");
 const transactionRoutes = require("./routes/transactions.routes");
+const boostRoutes = require("./routes/boosts.routes");
 const webhookRoutes = require("./routes/webhooks.routes");
 
 const app = express();
@@ -48,6 +49,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/api/device", deviceRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/boosts", boostRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Central error handler (multer errors, etc.)
@@ -58,5 +60,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`AKSMarketPlace API running on http://localhost:${PORT}`);
+  console.log(`ADY Marketplace API running on http://localhost:${PORT}`);
 });

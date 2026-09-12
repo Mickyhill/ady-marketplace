@@ -1,7 +1,7 @@
 {
-  "name": "aksmarketplace-backend",
+  "name": "ady-marketplace-backend",
   "version": "1.0.0",
-  "description": "AKSMarketPlace API - student marketplace backend",
+  "description": "ADY Marketplace API - student marketplace backend",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {

@@ -41,9 +41,19 @@ export default function ListingDetail() {
   const [disputeDetails, setDisputeDetails] = useState("");
   const [disputeStatus, setDisputeStatus] = useState("");
 
+  const [transaction, setTransaction] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [payingNow, setPayingNow] = useState(false);
+
   useEffect(() => {
     api.getListing(id).then((d) => setListing(d.listing)).catch((e) => setError(e.message));
   }, [id]);
+
+  useEffect(() => {
+    if (user) {
+      api.getMyTransactionForListing(id).then((d) => setTransaction(d.transaction)).catch(() => {});
+    }
+  }, [id, user]);
 
   async function handleSendMessage(e) {
     e.preventDefault();
@@ -89,6 +99,41 @@ export default function ListingDetail() {
       setShowDispute(false);
     } catch (err) {
       setDisputeStatus(err.message);
+    }
+  }
+
+  async function handleBuyNow() {
+    if (!user) return navigate("/login", { state: { from: `/listing/${id}` } });
+    setPaymentStatus("");
+    setPayingNow(true);
+    try {
+      const data = await api.createTransaction(id);
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      setPaymentStatus(err.message);
+      setPayingNow(false);
+    }
+  }
+
+  async function handleConfirmReceived() {
+    setPaymentStatus("");
+    try {
+      await api.confirmTransactionReceived(transaction.id);
+      setTransaction({ ...transaction, status: "RELEASED" });
+      setPaymentStatus("Payment released to the seller. Don't forget to leave a review!");
+    } catch (err) {
+      setPaymentStatus(err.message);
+    }
+  }
+
+  async function handleDisputePayment(reason) {
+    setPaymentStatus("");
+    try {
+      await api.disputeTransaction(transaction.id, reason, "Raised from the listing page.");
+      setTransaction({ ...transaction, status: "DISPUTED" });
+      setPaymentStatus("Payment disputed — an admin will review it and your funds stay held until then.");
+    } catch (err) {
+      setPaymentStatus(err.message);
     }
   }
 
@@ -147,6 +192,44 @@ export default function ListingDetail() {
           </div>
         </div>
 
+        {!isOwner && listing.status === "ACTIVE" && !transaction && (
+          <div className="mt-4 border border-brand-200 bg-brand-50 rounded-md p-3">
+            <p className="text-sm font-medium mb-1">Pay securely through ADY Marketplace</p>
+            <p className="text-xs text-ink-500 mb-2">Your payment is held until you confirm you've received the item — safer than sending money directly.</p>
+            <button
+              onClick={handleBuyNow}
+              disabled={payingNow}
+              className="w-full bg-brand-600 hover:bg-brand-700 text-white rounded-md py-2 text-sm font-medium disabled:opacity-60"
+            >
+              {payingNow ? "Redirecting to payment..." : `Buy now — ${formatNaira(listing.price)}`}
+            </button>
+          </div>
+        )}
+
+        {transaction && transaction.status === "PENDING" && (
+          <p className="mt-4 text-sm text-ink-500">Payment initiated — complete checkout to secure this purchase.</p>
+        )}
+
+        {transaction && transaction.status === "HELD" && (
+          <div className="mt-4 border border-ink-300/40 rounded-md p-3 space-y-2">
+            <p className="text-sm font-medium">Payment held (₦{(transaction.totalAmount / 100).toLocaleString("en-NG")}) — confirm once you've received the item.</p>
+            <div className="flex gap-2">
+              <button onClick={handleConfirmReceived} className="text-xs bg-green-600 text-white rounded-md px-3 py-1.5">Confirm received — release payment</button>
+              <button onClick={() => handleDisputePayment("Item never received")} className="text-xs border border-red-200 text-red-600 rounded-md px-3 py-1.5">Something's wrong</button>
+            </div>
+          </div>
+        )}
+
+        {transaction && transaction.status === "RELEASED" && (
+          <p className="mt-4 text-sm text-green-700">✓ Payment released to the seller.</p>
+        )}
+
+        {transaction && transaction.status === "DISPUTED" && (
+          <p className="mt-4 text-sm text-yellow-700">Payment disputed — an admin is reviewing this transaction.</p>
+        )}
+
+        {paymentStatus && <p className="text-xs text-ink-500 mt-2">{paymentStatus}</p>}
+
         {!isOwner && (
           <form onSubmit={handleSendMessage} className="mt-4 space-y-2">
             <textarea
@@ -161,7 +244,7 @@ export default function ListingDetail() {
               Message seller
             </button>
             {messageStatus && <p className="text-sm text-ink-500">{messageStatus}</p>}
-            <p className="text-xs text-ink-500">Keep payment and important details on MyMarketPlace — we can't help resolve a problem that happened entirely over WhatsApp.</p>
+            <p className="text-xs text-ink-500">Keep payment and important details on ADY Marketplace — we can't help resolve a problem that happened entirely over WhatsApp.</p>
           </form>
         )}
 

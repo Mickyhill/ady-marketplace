@@ -23,7 +23,7 @@ async function main() {
     });
   }
 
-  const adminEmail = "admin@aksmarketplace.test";
+  const adminEmail = "admin@adymarketplace.test";
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!existingAdmin) {
     const passwordHash = await bcrypt.hash("ChangeMe123!", 10);

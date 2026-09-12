@@ -51,13 +51,18 @@ async function sendViaTermii(phone, code) {
       api_key: process.env.SMS_PROVIDER_API_KEY,
       message_type: "NUMERIC",
       to: phone,
-      from: process.env.SMS_SENDER_ID || "MyMarketPlace",
+      // Nigerian alphanumeric SMS sender IDs are capped at 11 characters —
+      // "ADY Marketplace" (15 chars) would be rejected or truncated by most
+      // gateways, so the fallback here is a shortened version. Set
+      // SMS_SENDER_ID in .env to whatever short ID you register with your
+      // provider.
+      from: process.env.SMS_SENDER_ID || "ADYMarket",
       channel: "generic",
       pin_attempts: 3,
       pin_time_to_live: 10, // minutes
       pin_length: 6,
       pin_placeholder: "< 1234 >",
-      message_text: `Your MyMarketPlace verification code is < 1234 >. Valid for 10 minutes.`,
+      message_text: `Your ADY Marketplace verification code is < 1234 >. Valid for 10 minutes.`,
       pin_type: "NUMERIC",
     }),
   });
@@ -81,7 +86,7 @@ async function sendViaAfricasTalking(phone, code) {
     body: new URLSearchParams({
       username: process.env.SMS_PROVIDER_USERNAME || "",
       to: phone,
-      message: `Your MyMarketPlace verification code is ${code}. Valid for 10 minutes.`,
+      message: `Your ADY Marketplace verification code is ${code}. Valid for 10 minutes.`,
     }),
   });
   const data = await res.json();

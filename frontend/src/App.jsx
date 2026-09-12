@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 
@@ -14,6 +14,11 @@ import ListingDetail from "./pages/ListingDetail";
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import TransactionCallback from "./pages/TransactionCallback";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Guidelines from "./pages/Guidelines";
+import FAQ from "./pages/FAQ";
 
 export default function App() {
   return (
@@ -31,11 +36,22 @@ export default function App() {
           <Route path="/my-listings" element={<ProtectedRoute><MyListings /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/transactions/:id/callback" element={<ProtectedRoute><TransactionCallback /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/guidelines" element={<Guidelines />} />
+          <Route path="/faq" element={<FAQ />} />
         </Routes>
       </main>
       <footer className="border-t border-ink-300/40 py-6 text-center text-xs text-ink-500">
-        ADYMarketPlace — built by and for AKSU students.
+        <p className="mb-2">ADY Marketplace — built by and for AKSU students.</p>
+        <div className="flex justify-center gap-4 flex-wrap">
+          <Link to="/faq" className="hover:underline">FAQ</Link>
+          <Link to="/guidelines" className="hover:underline">Community Guidelines</Link>
+          <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+          <Link to="/terms" className="hover:underline">Terms of Service</Link>
+        </div>
       </footer>
     </div>
   );

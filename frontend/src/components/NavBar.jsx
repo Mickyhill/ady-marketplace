@@ -34,7 +34,7 @@ export default function NavBar() {
             <span className="w-9 h-9 rounded-md bg-brand-500 text-white flex items-center justify-center font-display font-semibold">M</span>
           )}
           <span>
-            <span className="font-display font-semibold text-lg leading-none block">ADY MarketPlace</span>
+            <span className="font-display font-semibold text-lg leading-none block">ADY Marketplace</span>
             <span className="text-xs text-ink-500 leading-none">AKSU Campus</span>
           </span>
         </Link>
