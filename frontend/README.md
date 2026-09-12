@@ -1,6 +1,6 @@
-# AKSMarketPlace — Frontend
+# ADY Marketplace — Frontend
 
-React (Vite) + Tailwind CSS single-page app for the AKSMarketPlace student marketplace.
+React (Vite) + Tailwind CSS single-page app for the ADY Marketplace student marketplace.
 
 ## Pages
 `Home`, `Login`, `Register`, `ForgotPassword`, `ResetPassword`, `Sell`, `MyListings`, `ListingDetail`, `Messages`, `Profile`, `Admin` — matching the page set of the original build.

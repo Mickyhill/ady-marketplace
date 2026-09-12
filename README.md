@@ -1,4 +1,4 @@
-# AKSMarketPlace
+# ADY Marketplace
 
 A student marketplace for AKSU campus — buy, sell, and message other students about furniture, electronics, books, and more. This is a full-stack rebuild you own outright: a React frontend and a Node/Express + Prisma backend, no third-party platform lock-in.
 
@@ -27,7 +27,7 @@ npm install
 npm run dev                # http://localhost:5173
 ```
 
-Open `http://localhost:5173`. Register a normal account to try buyer/seller flows, or log in as the seeded admin (`admin@aksmarketplace.test` / `ChangeMe123!` — change this password immediately) to see the Admin dashboard.
+Open `http://localhost:5173`. Register a normal account to try buyer/seller flows, or log in as the seeded admin (`admin@adymarketplace.test` / `ChangeMe123!` — change this password immediately) to see the Admin dashboard.
 
 Full details, API reference, and deployment notes are in `backend/README.md` and `frontend/README.md`.
 

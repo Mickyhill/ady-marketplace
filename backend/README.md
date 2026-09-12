@@ -1,6 +1,6 @@
-# AKSMarketPlace — Backend API
+# ADY Marketplace — Backend API
 
-Node.js + Express + Prisma REST API for the AKSMarketPlace student marketplace.
+Node.js + Express + Prisma REST API for the ADY Marketplace student marketplace.
 
 ## Stack
 - Express (HTTP server & routing)
@@ -20,7 +20,7 @@ npm run dev                   # starts on http://localhost:4000
 ```
 
 Default seeded admin login (change the password immediately after first login):
-- email: `admin@aksmarketplace.test`
+- email: `admin@adymarketplace.test`
 - password: `ChangeMe123!`
 
 ## API overview
