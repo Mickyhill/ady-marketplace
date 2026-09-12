@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Star, Search } from "lucide-react";
 import { api } from "../api/client";
 import ListingCard from "../components/ListingCard";
@@ -17,6 +18,7 @@ const FALLBACK_CATEGORIES = [
 ];
 
 export default function Home() {
+  const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
   const [featured, setFeatured] = useState([]);
   const [listings, setListings] = useState([]);
@@ -28,7 +30,16 @@ export default function Home() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.getCategories().then((d) => d.categories?.length && setCategories(d.categories)).catch(() => {});
+    api.getCategories().then((d) => {
+      if (!d.categories?.length) return;
+      setCategories(d.categories);
+      // Support deep links from the footer's Categories list, e.g. /?category=Electronics
+      const categoryName = searchParams.get("category");
+      if (categoryName) {
+        const match = d.categories.find((c) => c.name.toLowerCase() === categoryName.toLowerCase());
+        if (match) setActiveCategory(match.id);
+      }
+    }).catch(() => {});
     api.getListings({ featured: "true", pageSize: 3 }).then((d) => setFeatured(d.listings)).catch(() => {});
   }, []);
 

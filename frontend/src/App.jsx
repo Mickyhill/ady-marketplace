@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
+import { Mail, Phone, MapPin } from "lucide-react";
 import NavBar from "./components/NavBar";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 
@@ -19,6 +20,12 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Guidelines from "./pages/Guidelines";
 import FAQ from "./pages/FAQ";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
+import SellerGuide from "./pages/SellerGuide";
+import Help from "./pages/Help";
+
+const CATEGORIES = ["Furniture", "Electronics", "Books", "Fashion", "Kitchen", "Hostel", "Vehicles", "Services"];
 
 export default function App() {
   return (
@@ -42,15 +49,62 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/guidelines" element={<Guidelines />} />
           <Route path="/faq" element={<FAQ />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/seller-guide" element={<SellerGuide />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </main>
-      <footer className="border-t border-ink-300/40 py-6 text-center text-xs text-ink-500">
-        <p className="mb-2">ADY Marketplace — built by and for AKSU students.</p>
-        <div className="flex justify-center gap-4 flex-wrap">
-          <Link to="/faq" className="hover:underline">FAQ</Link>
-          <Link to="/guidelines" className="hover:underline">Community Guidelines</Link>
-          <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
-          <Link to="/terms" className="hover:underline">Terms of Service</Link>
+
+      <footer className="border-t border-ink-300/40 bg-white text-sm text-ink-500">
+        <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-2 md:grid-cols-4 gap-8">
+          <div>
+            <p className="font-display font-semibold text-ink-900 text-base mb-1">ADY Marketplace</p>
+            <p className="text-xs mb-3">Campus Marketplace</p>
+            <p className="text-xs mb-4">The trusted student marketplace for AKSU. Buy, sell, and trade safely with verified students.</p>
+            <a href="https://x.com/AdyMarketplace" target="_blank" rel="noreferrer" className="inline-block hover:text-brand-600" aria-label="X (Twitter)">
+              𝕏
+            </a>
+          </div>
+
+          <div>
+            <p className="font-semibold text-ink-900 mb-2">Quick Links</p>
+            <ul className="space-y-1.5">
+              <li><Link to="/about" className="hover:underline">About Us</Link></li>
+              <li><Link to="/blog" className="hover:underline">Blog</Link></li>
+              <li><Link to="/faq" className="hover:underline">FAQ</Link></li>
+              <li><Link to="/guidelines" className="hover:underline">Safety Tips</Link></li>
+              <li><Link to="/seller-guide" className="hover:underline">Seller Guide</Link></li>
+              <li><Link to="/help" className="hover:underline">Help & Support</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-semibold text-ink-900 mb-2">Categories</p>
+            <ul className="space-y-1.5">
+              {CATEGORIES.map((c) => (
+                <li key={c}><Link to={`/?category=${encodeURIComponent(c)}`} className="hover:underline">{c}</Link></li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-semibold text-ink-900 mb-2">Contact</p>
+            <ul className="space-y-2 text-xs">
+              <li className="flex items-start gap-2"><MapPin size={14} className="mt-0.5 shrink-0" /> AKSU Campus, Akwa Ibom, Nigeria</li>
+              <li className="flex items-start gap-2"><Mail size={14} className="mt-0.5 shrink-0" /> <a href="mailto:adymarketplace76@gmail.com" className="hover:underline">adymarketplace76@gmail.com</a></li>
+              <li className="flex items-start gap-2"><Phone size={14} className="mt-0.5 shrink-0" /> +234 807 156 9877 · +234 802 511 9599</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-ink-300/40 py-4 text-center text-xs">
+          <p className="mb-2">© {new Date().getFullYear()} ADY Marketplace. All rights reserved.</p>
+          <div className="flex justify-center gap-4 flex-wrap">
+            <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+            <Link to="/terms" className="hover:underline">Terms of Service</Link>
+            <Link to="/help" className="hover:underline">Contact</Link>
+          </div>
         </div>
       </footer>
     </div>
