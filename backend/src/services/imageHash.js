@@ -15,11 +15,22 @@ const HASH_SIZE = 8; // 8x8 = 64-bit hash
 
 /**
  * Compute a perceptual hash for an image file.
- * @param {string} filePath - path to the image on disk
+ * @param {string} filePath - local disk path, OR a remote URL (Cloudinary)
  * @returns {Promise<string>} - 64-character binary string hash
  */
 async function hashImage(filePath) {
-  const { data } = await sharp(filePath)
+  // Cloudinary storage means uploaded files never touch local disk — their
+  // "path" is actually a remote URL. sharp can't read a URL directly, so
+  // fetch the bytes into a buffer first. Local paths (e.g. in tests) still
+  // work unchanged, since sharp accepts a bare path too.
+  let input = filePath;
+  if (typeof filePath === "string" && filePath.startsWith("http")) {
+    const res = await fetch(filePath);
+    if (!res.ok) throw new Error(`Could not fetch image for hashing: ${res.status}`);
+    input = Buffer.from(await res.arrayBuffer());
+  }
+
+  const { data } = await sharp(input)
     .resize(HASH_SIZE, HASH_SIZE, { fit: "fill" })
     .grayscale()
     .raw()

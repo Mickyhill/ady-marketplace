@@ -27,14 +27,14 @@ model User {
   department         String?
   faculty            String?
   matricNumber       String?            @unique
-  studentIdPhotoUrl  String?
+  studentPortalScreenshotUrl  String?         // screenshot of the student's logged-in AKSU portal dashboard — admin cross-checks name/matric number against this instead of an ID card photo (AKSU has no public verification API)
   role               String             @default("STUDENT")
   verificationStatus String             @default("UNVERIFIED") // drives "AKSU Verified" badge: VERIFIED = badge shown
   phoneVerified      Boolean            @default(false)         // "Phone Verified" badge — set by Phase 2's real OTP flow, or manually by admin as a fallback
   phoneOtpCode       String?                                     // hashed OTP (bcrypt), never plaintext
   phoneOtpExpiresAt  DateTime?
   phoneOtpAttempts   Int                @default(0)              // rate-limit guard
-  identityVerified   Boolean            @default(false)         // "Identity Verified" badge — manually toggled by admin (stronger check than matric+ID photo alone)
+  identityVerified   Boolean            @default(false)         // "Identity Verified" badge — manually toggled by admin (stronger check than matric+portal screenshot alone)
   paystackSubaccountCode String?                                 // set once a seller completes Paystack subaccount onboarding (Phase 3)
   avatarUrl          String?
   bio                String?
@@ -42,6 +42,7 @@ model User {
   ratingCount        Int                @default(0)
   resetToken         String?
   resetTokenExpires  DateTime?
+  deletedAt          DateTime? // self-service account deletion — personal fields get anonymized, row stays for referential integrity (messages, reviews, transactions)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -76,6 +77,7 @@ model Listing {
   status      String            @default("ACTIVE")
   featured    Boolean           @default(false)
   itemVerified Boolean          @default(false) // "Item Inspected" badge — SEPARATE from seller verification (a verified student != a verified item). Admin sets this after a real physical check, per item.
+  boostedUntil DateTime?        // paid promotion (self-serve) — treated the same as `featured` (admin-curated) for surfacing purposes, but expires on its own
   viewCount   Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -92,6 +94,7 @@ model Listing {
   disputes    Dispute[]
   riskFlags   RiskFlag[]
   transactions Transaction[]
+  boosts      ListingBoost[]
 }
 
 model ListingImage {
@@ -262,4 +265,19 @@ model PaymentWebhookEvent {
   signatureOk Boolean
   processedAt DateTime?
   createdAt   DateTime  @default(now())
+}
+
+// Paid, self-serve listing promotion — separate from admin-curated
+// `featured`. This is platform revenue, so it's a straight payment (no
+// subaccount split with the seller, unlike item-purchase Transactions).
+model ListingBoost {
+  id                String   @id @default(uuid())
+  listing           Listing  @relation(fields: [listingId], references: [id])
+  listingId         String
+  sellerId          String
+  amountKobo        Int
+  durationDays      Int
+  status            String   @default("PENDING") // PENDING -> ACTIVE (paid) — no further states needed, it just expires on its own
+  providerReference String   @unique
+  createdAt         DateTime @default(now())
 }

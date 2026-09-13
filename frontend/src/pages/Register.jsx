@@ -27,14 +27,14 @@ export default function Register() {
     e.preventDefault();
     setError("");
     if (!idPhoto) {
-      setError("Please upload a photo of your student ID card.");
+      setError("Please upload a screenshot of your AKSU student portal dashboard.");
       return;
     }
     setSubmitting(true);
     try {
       const formData = new FormData();
       Object.entries(form).forEach(([k, v]) => formData.append(k, v));
-      formData.append("studentIdPhoto", idPhoto);
+      formData.append("studentPortalScreenshot", idPhoto);
       await register(formData);
       navigate("/");
     } catch (err) {
@@ -89,9 +89,9 @@ export default function Register() {
           <p className="text-xs text-ink-500 mt-1">Format: AK&lt;year&gt;/&lt;faculty&gt;/&lt;dept&gt;/&lt;number&gt;. Only visible to admins — not shown on your public profile.</p>
         </div>
         <div>
-          <label className="text-sm font-medium block mb-1">Student ID card photo</label>
+          <label className="text-sm font-medium block mb-1">AKSU student portal screenshot</label>
           <input required type="file" accept="image/*" onChange={handlePhotoChange} className="w-full text-sm" />
-          <p className="text-xs text-ink-500 mt-1">An admin checks this against your matric number before verifying your account. Only visible to admins.</p>
+          <p className="text-xs text-ink-500 mt-1">Log into your student portal at aksu.edu.ng/app and screenshot your dashboard showing your name. An admin checks this against your matric number before verifying your account. Only visible to admins.</p>
           {idPhotoPreview && (
             <img src={idPhotoPreview} className="mt-2 w-32 h-20 object-cover rounded-md border border-ink-300/40" />
           )}

@@ -6,7 +6,7 @@ export default function About() {
       <h1 className="text-2xl font-semibold mb-2">About ADY Marketplace</h1>
       <p>ADY Marketplace is a student-only marketplace built for AKSU — a safer, more organized way to buy,
       sell, and connect on campus than scattered WhatsApp groups and posters.</p>
-      <p>Every seller registers with a real matric number and a photo of their student ID card, admins verify
+      <p>Every seller registers with a real matric number and a screenshot of their AKSU student portal, admins verify
       accounts before they're trusted, and payments can be held securely until a buyer confirms they've
       actually received their item. It's built by and for AKSU students, with student safety as the starting
       point rather than an afterthought.</p>

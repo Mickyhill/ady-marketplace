@@ -26,7 +26,9 @@ router.get("/", async (req, res) => {
     if (category) where.categoryId = category;
     if (condition) where.condition = condition;
     if (location) where.location = { contains: location };
-    if (featured === "true") where.featured = true;
+    if (featured === "true") {
+      where.AND = (where.AND || []).concat([{ OR: [{ featured: true }, { boostedUntil: { gt: new Date() } }] }]);
+    }
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = parseFloat(minPrice);
@@ -109,7 +111,7 @@ router.post("/", requireAuth, upload.array("images", 6), async (req, res) => {
     const images = [];
     for (const file of req.files || []) {
       const image = await prisma.listingImage.create({
-        data: { url: `/uploads/${file.filename}`, listingId: listing.id },
+        data: { url: file.path, listingId: listing.id },
       });
       images.push(image);
       // Fire-and-forget: hashing is slower than a DB write and shouldn't

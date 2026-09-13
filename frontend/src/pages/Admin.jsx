@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { formatNaira } from "../components/ListingCard";
 import { resolveUploadUrl } from "../api/client";
 
-const TABS = ["Overview", "Users", "Listings", "Reports", "Disputes"];
+const TABS = ["Overview", "Users", "Listings", "Reports", "Disputes", "Risk Flags"];
 
 const RISK_STYLE = {
   LOW: "bg-green-100 text-green-700",
@@ -20,6 +20,8 @@ export default function Admin() {
   const [listings, setListings] = useState([]);
   const [reports, setReports] = useState([]);
   const [disputes, setDisputes] = useState([]);
+  const [riskFlags, setRiskFlags] = useState([]);
+  const [actionStatus, setActionStatus] = useState("");
 
   function loadAll() {
     api.getAdminStats().then(setStats).catch(() => {});
@@ -27,6 +29,7 @@ export default function Admin() {
     api.getAdminListings().then((d) => setListings(d.listings)).catch(() => {});
     api.getAdminReports().then((d) => setReports(d.reports)).catch(() => {});
     api.getAdminDisputes().then((d) => setDisputes(d.disputes)).catch(() => {});
+    api.getAdminRiskFlags().then((d) => setRiskFlags(d.flags)).catch(() => {});
   }
 
   useEffect(loadAll, []);
@@ -68,6 +71,22 @@ export default function Admin() {
 
   async function handleDisputeResolve(id, status) {
     await api.resolveDispute(id, status);
+    loadAll();
+  }
+
+  async function handleReleaseFunds(id) {
+    setActionStatus("");
+    try {
+      await api.releaseDisputeFunds(id);
+      setActionStatus("Funds released to seller.");
+      loadAll();
+    } catch (err) {
+      setActionStatus(err.message);
+    }
+  }
+
+  async function handleFlagResolve(id) {
+    await api.resolveRiskFlag(id);
     loadAll();
   }
 
@@ -116,9 +135,9 @@ export default function Admin() {
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${RISK_STYLE[u.risk]}`}>{RISK_EMOJI[u.risk]} {u.risk}</span>
               </div>
-              {u.studentIdPhotoUrl && (
-                <a href={resolveUploadUrl(u.studentIdPhotoUrl)} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline block mt-1">
-                  View student ID photo
+              {u.studentPortalScreenshotUrl && (
+                <a href={resolveUploadUrl(u.studentPortalScreenshotUrl)} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline block mt-1">
+                  View student portal screenshot
                 </a>
               )}
               <div className="flex flex-wrap gap-2 mt-2">
@@ -188,6 +207,7 @@ export default function Admin() {
 
       {tab === "Disputes" && (
         <div className="space-y-3">
+          {actionStatus && <p className="text-sm text-ink-500">{actionStatus}</p>}
           {disputes.length === 0 && <p className="text-sm text-ink-500">No disputes filed.</p>}
           {disputes.map((d) => (
             <div key={d.id} className="border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
@@ -203,6 +223,11 @@ export default function Admin() {
                 </span>
               </div>
               {d.details && <p className="text-xs mb-2">{d.details}</p>}
+              {d.transaction && (
+                <p className="text-xs mb-2 font-medium">
+                  💰 Linked payment: ₦{(d.transaction.totalAmount / 100).toLocaleString("en-NG")} — status: {d.transaction.status}
+                </p>
+              )}
               {d.messages.length > 0 && (
                 <div className="bg-ink-100 rounded-md p-2 mb-2 max-h-32 overflow-y-auto space-y-1">
                   {d.messages.map((m) => (
@@ -212,11 +237,46 @@ export default function Admin() {
                   ))}
                 </div>
               )}
-              {d.status === "OPEN" && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleDisputeResolve(d.id, "RESOLVED")} className="text-xs bg-green-600 text-white rounded-md px-3 py-1.5">Mark resolved</button>
-                  <button onClick={() => handleDisputeResolve(d.id, "REJECTED")} className="text-xs border border-red-200 text-red-600 rounded-md px-3 py-1.5">Reject</button>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {d.status === "OPEN" && (
+                  <>
+                    <button onClick={() => handleDisputeResolve(d.id, "RESOLVED")} className="text-xs bg-green-600 text-white rounded-md px-3 py-1.5">Mark resolved</button>
+                    <button onClick={() => handleDisputeResolve(d.id, "REJECTED")} className="text-xs border border-red-200 text-red-600 rounded-md px-3 py-1.5">Reject</button>
+                  </>
+                )}
+                {d.transaction && d.transaction.status === "DISPUTED" && (
+                  <button onClick={() => handleReleaseFunds(d.id)} className="text-xs bg-brand-500 text-white rounded-md px-3 py-1.5">
+                    Rule for seller — release funds
+                  </button>
+                )}
+              </div>
+              {d.transaction && d.transaction.status === "DISPUTED" && (
+                <p className="text-xs text-ink-500 mt-1">
+                  No refund-to-buyer action yet — that needs Paystack's refund API wired in separately.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "Risk Flags" && (
+        <div className="space-y-2">
+          <p className="text-xs text-ink-500 mb-2">Automated fraud signals — shared devices across accounts, and photos matching another listing.</p>
+          {riskFlags.length === 0 && <p className="text-sm text-ink-500">No risk flags.</p>}
+          {riskFlags.map((f) => (
+            <div key={f.id} className="flex items-center gap-3 border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{f.type.replace(/_/g, " ")}</p>
+                <p className="text-xs text-ink-500">{f.details}</p>
+                {f.user && <p className="text-xs text-ink-500">User: {f.user.name} ({f.user.email})</p>}
+                {f.listing && <p className="text-xs text-ink-500">Listing: {f.listing.title}</p>}
+              </div>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${f.severity === "RED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
+                {f.severity === "RED" ? "🔴" : "🟡"} {f.severity}
+              </span>
+              {!f.resolved && (
+                <button onClick={() => handleFlagResolve(f.id)} className="text-xs border border-ink-300 rounded-md px-3 py-1.5">Mark reviewed</button>
               )}
             </div>
           ))}

@@ -12,7 +12,7 @@ export default function Terms() {
       <section>
         <h2 className="font-semibold mt-4 mb-1">Who can use ADY Marketplace</h2>
         <p>You must be a genuine AKSU student (or otherwise approved by an admin) to register. Providing a
-        false matric number, a fake student ID photo, or impersonating another student is grounds for
+        false matric number, a fake portal screenshot, or impersonating another student is grounds for
         immediate account removal.</p>
       </section>
 
@@ -49,6 +49,12 @@ export default function Terms() {
         <p>ADY Marketplace facilitates connections between buyers and sellers but is not a party to the actual
         sale of goods. We do our best to verify students and flag risk, but we can't guarantee every
         transaction will go smoothly.</p>
+      </section>
+
+      <section>
+        <h2 className="font-semibold mt-4 mb-1">Contact</h2>
+        <p>Questions about these terms, or need to escalate something beyond the in-app dispute process? Email
+        <a href="mailto:adymarketplace76@gmail.com" className="text-brand-600 underline"> adymarketplace76@gmail.com</a>.</p>
       </section>
 
       <p className="text-ink-500 text-xs mt-8">Last updated: this is placeholder content — update this date when you finalize reviewed terms.</p>

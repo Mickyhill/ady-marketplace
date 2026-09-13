@@ -30,15 +30,15 @@ function publicUser(user, badges) {
 
 // POST /api/auth/register
 // Expects multipart/form-data (not JSON) because it now requires a student
-// ID card photo upload alongside the regular fields.
-router.post("/register", upload.single("studentIdPhoto"), async (req, res) => {
+// student portal screenshot upload alongside the regular fields.
+router.post("/register", upload.single("studentPortalScreenshot"), async (req, res) => {
   try {
     const { name, email, password, phone, department, faculty, matricNumber } = req.body;
     if (!name || !email || !password || !matricNumber) {
       return res.status(400).json({ error: "name, email, password and matric number are required" });
     }
     if (!req.file) {
-      return res.status(400).json({ error: "A photo of your student ID card is required" });
+      return res.status(400).json({ error: "A screenshot of your AKSU student portal dashboard is required" });
     }
     if (!MATRIC_NUMBER_PATTERN.test(matricNumber.trim())) {
       return res.status(400).json({ error: "Matric number should look like AK20/ENG/MEC/001" });
@@ -63,9 +63,9 @@ router.post("/register", upload.single("studentIdPhoto"), async (req, res) => {
         department,
         faculty,
         matricNumber: matricNumber.trim(),
-        studentIdPhotoUrl: `/uploads/${req.file.filename}`,
+        studentPortalScreenshotUrl: req.file.path,
         passwordHash,
-        // Format-valid + unique matric number, plus an ID card photo, still
+        // Format-valid + unique matric number, plus a portal screenshot, still
         // isn't proof of real enrollment — it's a much stronger starting
         // point than a bare text field, but an admin should actually look
         // at the photo before clicking "Verify" in the Admin dashboard.
@@ -90,6 +90,9 @@ router.post("/login", async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
+    }
+    if (user.deletedAt) {
+      return res.status(401).json({ error: "This account has been deleted" });
     }
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {

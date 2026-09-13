@@ -8,7 +8,7 @@ const FAQS = [
   },
   {
     q: "Do all users need to be verified students?",
-    a: "Yes — everyone registers with a matric number and a photo of their student ID card. An admin reviews this before an account is fully AKSU Verified.",
+    a: "Yes — everyone registers with a matric number and a screenshot of their AKSU student portal dashboard. An admin reviews this before an account is fully AKSU Verified.",
   },
   {
     q: "How do payments work?",
@@ -49,6 +49,13 @@ export default function FAQ() {
             {open === i && <p className="px-4 pb-3 text-sm text-ink-500">{item.a}</p>}
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 text-center border-t border-ink-300/40 pt-6">
+        <p className="text-sm text-ink-500 mb-2">Still have questions?</p>
+        <a href="mailto:adymarketplace76@gmail.com" className="inline-block bg-brand-500 hover:bg-brand-600 text-white rounded-md px-4 py-2 text-sm font-medium">
+          Contact Support
+        </a>
       </div>
     </div>
   );

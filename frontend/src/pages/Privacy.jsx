@@ -12,7 +12,7 @@ export default function Privacy() {
       <section>
         <h2 className="font-semibold mt-4 mb-1">What we collect</h2>
         <p>To verify you're a real AKSU student and keep the marketplace safe, we collect: your name, email,
-        phone number, department, faculty, matric number, and a photo of your student ID card. When you list
+        phone number, department, faculty, matric number, and a screenshot of your AKSU student portal dashboard. When you list
         an item, we collect photos and a description. When you pay or get paid through the platform, our
         payment provider (Paystack) processes your card/bank details — we never see or store your full card
         number.</p>
@@ -35,7 +35,8 @@ export default function Privacy() {
         <p>You can request a copy of your data, correct inaccurate information, or delete your account at any
         time from your Profile page. Deleting your account removes your personal details; some transaction
         records may be retained in anonymized form where needed for dispute resolution or legal
-        recordkeeping.</p>
+        recordkeeping. For any data request or question, email
+        <a href="mailto:adymarketplace76@gmail.com" className="text-brand-600 underline"> adymarketplace76@gmail.com</a>.</p>
       </section>
 
       <section>

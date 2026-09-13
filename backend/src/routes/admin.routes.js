@@ -28,7 +28,7 @@ router.get("/users", async (req, res) => {
     select: {
       id: true, name: true, email: true, role: true, verificationStatus: true,
       phoneVerified: true, identityVerified: true, rating: true, ratingCount: true,
-      department: true, faculty: true, matricNumber: true, studentIdPhotoUrl: true, createdAt: true,
+      department: true, faculty: true, matricNumber: true, studentPortalScreenshotUrl: true, createdAt: true,
     },
   });
 

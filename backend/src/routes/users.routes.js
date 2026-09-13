@@ -60,7 +60,7 @@ router.patch("/me/update", requireAuth, upload.single("avatar"), async (req, res
     const data = { name, phone, department, faculty, bio };
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
     if (req.file) {
-      data.avatarUrl = `/uploads/${req.file.filename}`;
+      data.avatarUrl = req.file.path;
     }
     const user = await prisma.user.update({ where: { id: req.user.id }, data });
     const unresolvedDisputes = await prisma.dispute.count({
@@ -111,7 +111,7 @@ router.delete("/me", requireAuth, async (req, res) => {
         department: null,
         faculty: null,
         matricNumber: null,
-        studentIdPhotoUrl: null,
+        studentPortalScreenshotUrl: null,
         avatarUrl: null,
         bio: null,
         passwordHash: unusablePasswordHash,

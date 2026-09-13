@@ -1,19 +1,23 @@
 const multer = require("multer");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
 
-// NOTE: This stores files on local disk under /uploads, which works fine for
-// development and small deployments. For production at scale, swap this out
-// for an object-storage provider (Cloudinary, S3, etc.) — the routes only
-// care that req.files[i].filename / req.file.filename exists, so swapping
-// the storage engine here is a self-contained change.
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads"));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Files upload straight to Cloudinary instead of local disk. This matters:
+// Render's free tier wipes the backend's local disk on every redeploy, which
+// silently deleted every previously-uploaded listing photo, avatar, and
+// student ID photo. Cloudinary storage survives redeploys, since the files
+// never touch the server's own disk at all.
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "ady-marketplace",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
   },
 });
 
