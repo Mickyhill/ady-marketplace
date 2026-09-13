@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { Star, Search } from "lucide-react";
 import { api } from "../api/client";
 import ListingCard from "../components/ListingCard";
@@ -168,6 +168,10 @@ export default function Home() {
             {listings.map((l) => <ListingCard key={l.id} listing={l} />)}
           </div>
         )}
+
+        <Link to="/register" className="block mt-10 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+          <img src="/social-banner.png" alt="Buy, sell, and connect — all on campus. Join ADY Marketplace today." className="w-full h-auto block" />
+        </Link>
 
         <SafetyTips className="mt-10" />
       </div>
