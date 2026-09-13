@@ -1,0 +1,12 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="legGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FB7B2E"/>
+      <stop offset="1" stop-color="#C24705"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="88" fill="#FFFFFF"/>
+  <line x1="200" y1="58" x2="62" y2="352" stroke="url(#legGrad)" stroke-width="64" stroke-linecap="round"/>
+  <line x1="200" y1="58" x2="338" y2="352" stroke="url(#legGrad)" stroke-width="64" stroke-linecap="round"/>
+  <path d="M96,196 C160,150 250,132 336,120 C260,168 178,182 112,224 Z" fill="#E85D0A"/>
+</svg>

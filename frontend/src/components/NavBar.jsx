@@ -25,13 +25,13 @@ export default function NavBar() {
         <Link to="/" className="flex items-center gap-2 shrink-0">
           {!logoFailed ? (
             <img
-              src="/aksu-logo.png"
-              alt="AKSU"
-              className="w-9 h-9 rounded-md object-contain bg-white"
+              src="/ady-logo.svg"
+              alt="ADY Marketplace"
+              className="w-9 h-9 object-contain"
               onError={() => setLogoFailed(true)}
             />
           ) : (
-            <span className="w-9 h-9 rounded-md bg-brand-500 text-white flex items-center justify-center font-display font-semibold">M</span>
+            <span className="w-9 h-9 rounded-md bg-brand-500 text-white flex items-center justify-center font-display font-semibold">A</span>
           )}
           <span>
             <span className="font-display font-semibold text-lg leading-none block">ADY Marketplace</span>

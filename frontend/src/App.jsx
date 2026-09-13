@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
 import NavBar from "./components/NavBar";
+import WarningTicker from "./components/WarningTicker";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
@@ -31,6 +32,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
+      <WarningTicker />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />

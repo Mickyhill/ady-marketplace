@@ -1,0 +1,30 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="legGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FB7B2E"/>
+      <stop offset="1" stop-color="#C24705"/>
+    </linearGradient>
+    <linearGradient id="swooshGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFA35F"/>
+      <stop offset="1" stop-color="#E85D0A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background square (for app-icon use; drop this rect for a transparent favicon) -->
+  <rect width="400" height="400" rx="88" fill="#FFFFFF"/>
+
+  <!-- The "A" — two bold strokes meeting at an apex, open counter, no crossbar -->
+  <line x1="200" y1="58" x2="62" y2="352" stroke="url(#legGrad)" stroke-width="60" stroke-linecap="round"/>
+  <line x1="200" y1="58" x2="338" y2="352" stroke="url(#legGrad)" stroke-width="60" stroke-linecap="round"/>
+
+  <!-- Swoosh — routed through the UPPER counter of the A, well clear of the cart below -->
+  <path d="M96,196 C160,150 250,132 336,120 C260,168 178,182 112,224 Z" fill="url(#swooshGrad)"/>
+
+  <!-- Cart — bold, minimal silhouette, sits in the lower counter, clear of the swoosh -->
+  <g>
+    <path d="M112,222 L150,222 L166,250" fill="none" stroke="#1B1B18" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M166,250 L246,250 L229,296 L182,296 Z" fill="#1B1B18"/>
+    <circle cx="192" cy="312" r="11" fill="#1B1B18"/>
+    <circle cx="222" cy="312" r="11" fill="#1B1B18"/>
+  </g>
+</svg>
