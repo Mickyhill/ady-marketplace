@@ -22,6 +22,7 @@ export default function MyListings() {
   const [boostingId, setBoostingId] = useState(null);
   const [boostError, setBoostError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   function load() {
     setLoading(true);
@@ -36,14 +37,20 @@ export default function MyListings() {
   }
 
   function requestDelete(listing) {
+    setDeleteError("");
     setDeleteTarget(listing);
   }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    await api.deleteListing(deleteTarget.id);
-    setDeleteTarget(null);
-    load();
+    setDeleteError("");
+    try {
+      await api.deleteListing(deleteTarget.id);
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      setDeleteError(err.message);
+    }
   }
 
   async function handleBoost(id, days) {
@@ -129,10 +136,14 @@ export default function MyListings() {
         open={!!deleteTarget}
         danger
         title="Delete this listing?"
-        message={deleteTarget ? `"${deleteTarget.title}" will be removed permanently. This can't be undone.` : ""}
+        message={
+          deleteTarget
+            ? deleteError || `"${deleteTarget.title}" will be removed permanently. This can't be undone.`
+            : ""
+        }
         confirmLabel="Delete"
         onConfirm={confirmDelete}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => { setDeleteTarget(null); setDeleteError(""); }}
       />
     </div>
   );
