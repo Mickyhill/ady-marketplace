@@ -3,6 +3,9 @@ import { Routes, Route, Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
 import NavBar from "./components/NavBar";
 import WarningTicker from "./components/WarningTicker";
+import FloatingContactButton from "./components/FloatingContactButton";
+import CookieBanner from "./components/CookieBanner";
+import NewsletterSignup from "./components/NewsletterSignup";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
@@ -25,15 +28,25 @@ import About from "./pages/About";
 import Blog from "./pages/Blog";
 import SellerGuide from "./pages/SellerGuide";
 import Help from "./pages/Help";
+import NotFound from "./pages/NotFound";
 
 const CATEGORIES = ["Furniture", "Electronics", "Books", "Fashion", "Kitchen", "Hostel", "Vehicles", "Services"];
 
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Skip-to-content link — invisible until keyboard-focused, lets
+          keyboard/screen-reader users bypass the navbar and ticker */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:text-brand-600 focus:px-4 focus:py-2 focus:rounded-md focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
       <NavBar />
       <WarningTicker />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -55,10 +68,14 @@ export default function App() {
           <Route path="/blog" element={<Blog />} />
           <Route path="/seller-guide" element={<SellerGuide />} />
           <Route path="/help" element={<Help />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 
-      <footer className="border-t border-ink-300/40 bg-white text-sm text-ink-500">
+      <footer className="border-t border-ink-300/40 bg-white text-sm text-ink-500 no-print">
+        <div className="max-w-6xl mx-auto px-4 pt-10">
+          <NewsletterSignup />
+        </div>
         <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-2 md:grid-cols-4 gap-8">
           <div>
             <p className="font-display font-semibold text-ink-900 text-base mb-1">ADY Marketplace</p>
@@ -110,6 +127,9 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <FloatingContactButton />
+      <CookieBanner />
     </div>
   );
 }

@@ -75,10 +75,7 @@ export default function Home() {
             Buy, sell, and connect <span className="text-brand-100 underline decoration-white/30">on campus</span>
           </h1>
           <p className="mt-4 text-white/80 max-w-xl mx-auto">
-            Trusted listings from verified AKSU students. Buy what you need from students around campus.
-          </p>
-          <p className="mt-2 text-white/70 max-w-xl mx-auto text-sm">
-            Find what students are selling. From books and fridges to mattresses and more, shop from verified AKSU students.
+            Trusted listings from verified AKSU students — mattresses, fridges, books, and more, nearby.
           </p>
           <div className="mt-8 max-w-xl mx-auto">
             <div className="flex items-center gap-2 bg-white rounded-full px-4 py-3 shadow-lg">

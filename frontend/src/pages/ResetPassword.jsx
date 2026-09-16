@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { api } from "../api/client";
+import PasswordInput from "../components/PasswordInput";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -45,11 +46,11 @@ export default function ResetPassword() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-sm font-medium block mb-1">New password</label>
-          <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm" />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} />
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Confirm password</label>
-          <input type="password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm" />
+          <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} minLength={8} />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
