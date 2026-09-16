@@ -25,13 +25,19 @@ const app = express();
 // Allow both the real custom domain AND the old .onrender.com address —
 // keeps anything already bookmarked/shared with the old link working
 // during the transition, rather than suddenly breaking it.
+// Normalized (trimmed, no trailing slash) since a stray space or slash in
+// an env var would otherwise cause a silent, hard-to-spot mismatch.
+function normalizeOrigin(url) {
+  return (url || "").trim().replace(/\/$/, "");
+}
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:5173",
+  normalizeOrigin(process.env.FRONTEND_URL) || "http://localhost:5173",
   "https://aksmarketplace-2.onrender.com",
 ];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) return callback(null, true);
+    console.error(`CORS rejected origin: "${origin}" — allowed: ${JSON.stringify(allowedOrigins)}`);
     callback(new Error("Not allowed by CORS"));
   },
 }));
