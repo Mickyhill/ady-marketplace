@@ -53,16 +53,24 @@ export default function Login() {
 
           <div className="bg-white/10 border-l-4 border-white rounded-lg p-6 mb-6">
             <h2 className="font-display font-bold text-2xl mb-3">Meet Mr. Vix.</h2>
+            <p className="text-brand-50 mb-3">He needed a fairly used laptop before the semester started.</p>
             <p className="text-brand-50 mb-3">
-              He needed a mattress before resumption. Scared of getting scammed, he spent three days walking hostel to hostel.
-              No luck. No guarantee he'd find one at all.
+              He asked friends. Checked WhatsApp statuses. Searched through different groups. He found a few options, but one question kept coming back:
             </p>
-            <p className="font-display font-bold text-lg mb-3">He didn't have to.</p>
-            <p className="text-brand-50 mb-4">
-              ADY Marketplace verifies every seller. Your payment stays held until you confirm the item arrived.
-              Everything AKSU students sell sits in one place, searchable from your phone.
-            </p>
-            <p className="font-display font-bold">Don't be like Mr. Vix.</p>
+            <p className="text-white font-semibold italic mb-3">"Can I trust this seller?"</p>
+            <p className="text-brand-50 mb-3">So he kept searching.</p>
+            <p className="font-display font-bold text-lg mb-3">With ADY Marketplace, he wouldn't have to.</p>
+            <p className="text-brand-50 mb-3">ADY Marketplace brings AKSU buyers and sellers together in one trusted marketplace.</p>
+            <ul className="text-brand-50 mb-3 space-y-0.5">
+              <li>Find what you need.</li>
+              <li>Shop from verified sellers.</li>
+              <li>Compare your options.</li>
+              <li>Pay securely.</li>
+              <li>Confirm your item before the transaction is completed.</li>
+            </ul>
+            <p className="text-brand-50 mb-3">Books. Electronics. Furniture. Fashion. Services. And more.</p>
+            <p className="font-display font-bold mb-3">Whatever you're looking for, there's a better way to find it.</p>
+            <p className="text-white font-semibold">ADY Marketplace<br/>Buy. Sell. CONNECT.</p>
           </div>
 
           <div className="space-y-2">
