@@ -17,16 +17,21 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "ady-marketplace",
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"],
   },
 });
 
 function fileFilter(req, file, cb) {
-  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-  if (allowed.includes(file.mimetype)) {
+  // Checking the broad "image/*" prefix rather than an exact whitelist —
+  // different phones/browsers report MIME types slightly differently
+  // (e.g. "image/jpg" instead of "image/jpeg"), which caused real uploads
+  // to get rejected here even though they were genuinely valid images.
+  // Cloudinary's own allowed_formats list (above) is the actual gatekeeper
+  // for which formats succeed — this filter just blocks non-image files.
+  if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files (jpeg, png, webp, gif) are allowed"));
+    cb(new Error("Only image files are allowed"));
   }
 }
 
