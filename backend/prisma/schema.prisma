@@ -281,3 +281,8 @@ model ListingBoost {
   providerReference String   @unique
   createdAt         DateTime @default(now())
 }
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}

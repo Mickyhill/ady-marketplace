@@ -1,7 +1,7 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
 
-const MESSAGE = "Pay and chat through ADY Marketplace. We won't help fix or refund a deal made outside the platform.";
+const MESSAGE = "Pay and chat through ADY Marketplace. Deals made outside the platform are not covered by our protection or support.";
 
 export default function WarningTicker() {
   return (

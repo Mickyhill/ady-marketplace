@@ -2,11 +2,11 @@ import React from "react";
 import { ShieldAlert } from "lucide-react";
 
 const TIPS = [
-  "ADY Marketplace never asks you to pay into a personal staff account.",
-  "Never share your OTP or password. Not with anyone.",
-  "Inspect expensive items in person before you pay.",
-  "See something suspicious? Report it right away.",
-  "Keep your chats on ADY Marketplace, not WhatsApp.",
+  "ADY Marketplace will never ask you to pay into a personal staff account.",
+  "Never share your OTP, password, or login details with anyone.",
+  "For expensive items, inspect the item in person before making payment.",
+  "See something suspicious? Report it to us immediately.",
+  "Keep your conversations on ADY Marketplace. Avoid moving deals to WhatsApp or other platforms.",
 ];
 
 export default function SafetyTips({ className = "" }) {
