@@ -18,10 +18,23 @@ const deviceRoutes = require("./routes/deviceFingerprint.routes");
 const transactionRoutes = require("./routes/transactions.routes");
 const boostRoutes = require("./routes/boosts.routes");
 const webhookRoutes = require("./routes/webhooks.routes");
+const newsletterRoutes = require("./routes/newsletter.routes");
 
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
+// Allow both the real custom domain AND the old .onrender.com address —
+// keeps anything already bookmarked/shared with the old link working
+// during the transition, rather than suddenly breaking it.
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  "https://aksmarketplace-2.onrender.com",
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
+  },
+}));
 
 // IMPORTANT: mount the Paystack webhook route BEFORE express.json(). Paystack
 // signs the exact raw request bytes, and once express.json() has parsed the
@@ -50,6 +63,7 @@ app.use("/api/disputes", disputeRoutes);
 app.use("/api/device", deviceRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/boosts", boostRoutes);
+app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Central error handler (multer errors, etc.)
