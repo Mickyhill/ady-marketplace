@@ -135,7 +135,9 @@ export default function Home() {
           <h2 className="text-lg font-semibold">
             {activeCategory ? `${activeCategory}` : "Latest listings"} <span className="text-ink-500 font-normal">({total})</span>
           </h2>
+          <label htmlFor="sort-listings" className="sr-only">Sort listings</label>
           <select
+            id="sort-listings"
             value={sort}
             onChange={(e) => setSort(e.target.value)}
             className="text-sm border border-ink-300/50 rounded-full px-3 py-2 bg-white"
@@ -158,7 +160,7 @@ export default function Home() {
         )}
 
         <Link to="/register" className="block mt-10 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-          <img src="/social-banner.png" alt="Buy, sell, and connect — all on campus. Join ADY Marketplace today." className="w-full h-auto block" />
+          <img src="/social-banner.png" alt="Buy, sell, and connect — all on campus. Join ADY Marketplace today." width="1200" height="630" className="w-full h-auto block" />
         </Link>
 
         <SafetyTips className="mt-10" />

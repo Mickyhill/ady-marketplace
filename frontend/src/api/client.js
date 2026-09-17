@@ -1,20 +1,18 @@
-// In local dev, Vite's proxy (vite.config.js) forwards "/api" to
-// http://localhost:4000 automatically. Once deployed, the frontend and
-// backend live on different domains, so set VITE_API_BASE_URL (in a .env
-// file, or as an env var in your hosting provider) to the backend's full
-// URL, e.g. "https://ady-marketplace-api.onrender.com/api".
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
-// Uploaded images (listing photos, avatars) come back from the API as paths
-// like "/uploads/abc123.png" — relative to the BACKEND, not the frontend.
-// Locally this works by accident because Vite's dev proxy forwards /uploads
-// to the backend too. In production, frontend and backend are on different
-// domains, so relative paths would resolve against the frontend's own URL
-// and 404. This resolves them against the backend's real origin instead.
 const API_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
 export function resolveUploadUrl(path) {
   if (!path) return path;
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    // Cloudinary URLs: inject f_auto,q_auto so every image is served in the
+    // best format for the visitor's browser (WebP/AVIF where supported) at
+    // an automatically-tuned quality — real savings with zero manual
+    // per-photo compression work.
+    if (path.includes("res.cloudinary.com") && path.includes("/upload/") && !path.includes("f_auto")) {
+      return path.replace("/upload/", "/upload/f_auto,q_auto/");
+    }
+    return path;
+  }
   return `${API_ORIGIN}${path}`;
 }
 
@@ -44,22 +42,18 @@ async function request(path, { method = "GET", body, isMultipart = false } = {})
 }
 
 export const api = {
-  // auth
   register: (formData) => request("/auth/register", { method: "POST", body: formData, isMultipart: true }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
   me: () => request("/auth/me"),
   forgotPassword: (email) => request("/auth/forgot-password", { method: "POST", body: { email } }),
   resetPassword: (payload) => request("/auth/reset-password", { method: "POST", body: payload }),
 
-  // users
   getUser: (id) => request(`/users/${id}`),
   updateProfile: (formData) => request("/users/me/update", { method: "PATCH", body: formData, isMultipart: true }),
   deleteAccount: () => request("/users/me", { method: "DELETE" }),
 
-  // categories
   getCategories: () => request("/categories"),
 
-  // listings
   getListings: (params = {}) => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ""))).toString();
     return request(`/listings${qs ? `?${qs}` : ""}`);
@@ -71,23 +65,18 @@ export const api = {
   markSold: (id) => request(`/listings/${id}/sold`, { method: "PATCH" }),
   deleteListing: (id) => request(`/listings/${id}`, { method: "DELETE" }),
 
-  // messages
   getConversations: () => request("/messages/conversations"),
   getThread: (listingId, otherUserId) => request(`/messages/thread/${listingId}/${otherUserId}`),
   sendMessage: (payload) => request("/messages", { method: "POST", body: payload }),
 
-  // reports
   fileReport: (payload) => request("/reports", { method: "POST", body: payload }),
 
-  // reviews
   createReview: (payload) => request("/reviews", { method: "POST", body: payload }),
   getSellerReviews: (sellerId) => request(`/reviews/seller/${sellerId}`),
 
-  // disputes
   openDispute: (payload) => request("/disputes", { method: "POST", body: payload }),
   getMyDisputes: () => request("/disputes/mine"),
 
-  // admin
   getAdminStats: () => request("/admin/stats"),
   getAdminUsers: () => request("/admin/users"),
   verifyUser: (id, status) => request(`/admin/users/${id}/verify`, { method: "PATCH", body: { status } }),
@@ -105,22 +94,20 @@ export const api = {
   getAdminRiskFlags: () => request("/admin/risk-flags"),
   resolveRiskFlag: (id) => request(`/admin/risk-flags/${id}/resolve`, { method: "PATCH" }),
 
-  // phone verification (Phase 2)
   sendPhoneOtp: (phone) => request("/auth/phone/send-otp", { method: "POST", body: { phone } }),
   verifyPhoneOtp: (code) => request("/auth/phone/verify-otp", { method: "POST", body: { code } }),
 
-  // device fingerprinting (Phase 2) — silent background signal, not user-facing
   registerDevice: (fingerprint) => request("/device/register", { method: "POST", body: { fingerprint } }),
 
-  // escrow payments (Phase 3)
   createTransaction: (listingId) => request("/transactions", { method: "POST", body: { listingId } }),
   getTransaction: (id) => request(`/transactions/${id}`),
   getMyTransactionForListing: (listingId) => request(`/transactions/mine/${listingId}`),
   confirmTransactionReceived: (id) => request(`/transactions/${id}/confirm-received`, { method: "POST" }),
   disputeTransaction: (id, reason, details) => request(`/transactions/${id}/dispute`, { method: "POST", body: { reason, details } }),
 
-  // paid listing promotion
   createBoost: (listingId, durationDays) => request("/boosts", { method: "POST", body: { listingId, durationDays } }),
+
+  subscribeNewsletter: (email) => request("/newsletter/subscribe", { method: "POST", body: { email } }),
 };
 
 export function setToken(token) {

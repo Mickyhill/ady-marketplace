@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
 import NavBar from "./components/NavBar";
@@ -6,29 +6,33 @@ import WarningTicker from "./components/WarningTicker";
 import FloatingContactButton from "./components/FloatingContactButton";
 import CookieBanner from "./components/CookieBanner";
 import NewsletterSignup from "./components/NewsletterSignup";
+import LoadingSpinner from "./components/LoadingSpinner";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 
+// Home loads eagerly since it's the page almost every visitor lands on
+// first. Everything else is code-split — a visitor just browsing listings
+// never downloads the Admin dashboard's JavaScript, for example.
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Sell from "./pages/Sell";
-import MyListings from "./pages/MyListings";
-import ListingDetail from "./pages/ListingDetail";
-import Messages from "./pages/Messages";
-import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
-import TransactionCallback from "./pages/TransactionCallback";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import Guidelines from "./pages/Guidelines";
-import FAQ from "./pages/FAQ";
-import About from "./pages/About";
-import Blog from "./pages/Blog";
-import SellerGuide from "./pages/SellerGuide";
-import Help from "./pages/Help";
-import NotFound from "./pages/NotFound";
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Sell = lazy(() => import("./pages/Sell"));
+const MyListings = lazy(() => import("./pages/MyListings"));
+const ListingDetail = lazy(() => import("./pages/ListingDetail"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Admin = lazy(() => import("./pages/Admin"));
+const TransactionCallback = lazy(() => import("./pages/TransactionCallback"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Guidelines = lazy(() => import("./pages/Guidelines"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
+const SellerGuide = lazy(() => import("./pages/SellerGuide"));
+const Help = lazy(() => import("./pages/Help"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const CATEGORIES = ["Furniture", "Electronics", "Books", "Fashion", "Kitchen", "Hostel", "Vehicles", "Services"];
 
@@ -47,29 +51,31 @@ export default function App() {
       <NavBar />
       <WarningTicker />
       <main id="main-content" className="flex-1">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/listing/:id" element={<ListingDetail />} />
-          <Route path="/sell" element={<ProtectedRoute><Sell /></ProtectedRoute>} />
-          <Route path="/my-listings" element={<ProtectedRoute><MyListings /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/transactions/:id/callback" element={<ProtectedRoute><TransactionCallback /></ProtectedRoute>} />
-          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/guidelines" element={<Guidelines />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/seller-guide" element={<SellerGuide />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<LoadingSpinner label="Loading page..." />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/listing/:id" element={<ListingDetail />} />
+            <Route path="/sell" element={<ProtectedRoute><Sell /></ProtectedRoute>} />
+            <Route path="/my-listings" element={<ProtectedRoute><MyListings /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/transactions/:id/callback" element={<ProtectedRoute><TransactionCallback /></ProtectedRoute>} />
+            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/guidelines" element={<Guidelines />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/seller-guide" element={<SellerGuide />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <footer className="border-t border-ink-300/40 bg-white text-sm text-ink-500 no-print">

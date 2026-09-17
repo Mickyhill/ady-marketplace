@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { resolveUploadUrl } from "../api/client";
+import { timeAgo } from "../utils/formatDate";
 
 function formatNaira(amount) {
   return `₦${Number(amount).toLocaleString("en-NG")}`;
@@ -22,7 +23,7 @@ export default function ListingCard({ listing }) {
     >
       <div className="aspect-[4/3] bg-ink-100 relative overflow-hidden">
         {image ? (
-          <img src={image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={image} alt={listing.title} width="400" height="300" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-ink-300">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -49,6 +50,9 @@ export default function ListingCard({ listing }) {
           </svg>
           {listing.location}
         </p>
+        {listing.createdAt && (
+          <p className="text-xs text-ink-500 mt-0.5">Posted {timeAgo(listing.createdAt)}</p>
+        )}
       </div>
     </Link>
   );
