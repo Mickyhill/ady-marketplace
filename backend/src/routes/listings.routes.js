@@ -111,7 +111,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST /api/listings — create a new listing (with photo uploads)
-router.post("/", requireAuth, requireVerified, async (req, res) => {
+router.post("/", requireAuth, requireVerified, upload.array("images", 6), async (req, res) => {
   try {
     const { title, description, price, categoryId, condition, location } = req.body;
     if (!title || !price || !categoryId || !condition || !location) {
