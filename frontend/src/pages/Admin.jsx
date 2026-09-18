@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { formatNaira } from "../components/ListingCard";
 import { resolveUploadUrl } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 const TABS = ["Overview", "Users", "Listings", "Reports", "Disputes", "Risk Flags"];
 
@@ -14,6 +15,7 @@ const RISK_STYLE = {
 const RISK_EMOJI = { LOW: "🟢", NORMAL: "⚪", REVIEW: "🟡", HIGH: "🔴" };
 
 export default function Admin() {
+  const { user: me } = useAuth();
   const [tab, setTab] = useState("Overview");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -47,6 +49,16 @@ export default function Admin() {
   async function handleIdentityToggle(id, current) {
     await api.setIdentityVerified(id, !current);
     loadAll();
+  }
+
+  async function handleRoleToggle(id, currentRole) {
+    setActionStatus("");
+    try {
+      await api.setUserRole(id, currentRole === "ADMIN" ? "STUDENT" : "ADMIN");
+      loadAll();
+    } catch (err) {
+      setActionStatus(err.message);
+    }
   }
 
   async function handleListingStatus(id, status) {
@@ -93,6 +105,7 @@ export default function Admin() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-semibold mb-6">Admin dashboard</h1>
+      {actionStatus && <p className="text-sm text-red-600 mb-4">{actionStatus}</p>}
 
       <div className="flex gap-1 mb-6 border-b border-ink-300/40 overflow-x-auto">
         {TABS.map((t) => (
@@ -130,7 +143,10 @@ export default function Admin() {
             <div key={u.id} className="border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{u.name} <span className="text-ink-500 font-normal">· {u.email}</span></p>
+                  <p className="font-medium truncate">
+                    {u.name} <span className="text-ink-500 font-normal">· {u.email}</span>
+                    {u.role === "ADMIN" && <span className="ml-2 text-xs bg-ink-900 text-white px-2 py-0.5 rounded-full">Admin</span>}
+                  </p>
                   <p className="text-xs text-ink-500">{u.department} {u.faculty && `· ${u.faculty}`} {u.matricNumber && `· ${u.matricNumber}`}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${RISK_STYLE[u.risk]}`}>{RISK_EMOJI[u.risk]} {u.risk}</span>
@@ -139,6 +155,11 @@ export default function Admin() {
                 <a href={resolveUploadUrl(u.studentPortalScreenshotUrl)} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline block mt-1">
                   View student portal screenshot
                 </a>
+              )}
+              {u.verifiedBy && (
+                <p className="text-xs text-ink-500 mt-1">
+                  Verified by {u.verifiedBy.name} ({u.verifiedBy.email}) on {new Date(u.verifiedAt).toLocaleDateString()}
+                </p>
               )}
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="text-xs px-2 py-1 rounded-full bg-ink-100">AKSU: {u.verificationStatus}</span>
@@ -154,6 +175,11 @@ export default function Admin() {
                 <button onClick={() => handleIdentityToggle(u.id, u.identityVerified)} className="text-xs border border-ink-300 rounded-md px-3 py-1.5">
                   {u.identityVerified ? "Unverify identity" : "Verify identity"}
                 </button>
+                {u.id !== me?.id && (
+                  <button onClick={() => handleRoleToggle(u.id, u.role)} className="text-xs border border-ink-900 rounded-md px-3 py-1.5">
+                    {u.role === "ADMIN" ? "Remove admin access" : "Make admin"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -207,7 +233,6 @@ export default function Admin() {
 
       {tab === "Disputes" && (
         <div className="space-y-3">
-          {actionStatus && <p className="text-sm text-ink-500">{actionStatus}</p>}
           {disputes.length === 0 && <p className="text-sm text-ink-500">No disputes filed.</p>}
           {disputes.map((d) => (
             <div key={d.id} className="border border-ink-300/40 rounded-lg p-3 bg-white text-sm">
@@ -225,7 +250,7 @@ export default function Admin() {
               {d.details && <p className="text-xs mb-2">{d.details}</p>}
               {d.transaction && (
                 <p className="text-xs mb-2 font-medium">
-                  💰 Linked payment: ₦{(d.transaction.totalAmount / 100).toLocaleString("en-NG")} — status: {d.transaction.status}
+                  Linked payment: ₦{(d.transaction.totalAmount / 100).toLocaleString("en-NG")} — status: {d.transaction.status}
                 </p>
               )}
               {d.messages.length > 0 && (

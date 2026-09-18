@@ -82,6 +82,7 @@ export const api = {
   verifyUser: (id, status) => request(`/admin/users/${id}/verify`, { method: "PATCH", body: { status } }),
   setPhoneVerified: (id, verified) => request(`/admin/users/${id}/phone`, { method: "PATCH", body: { verified } }),
   setIdentityVerified: (id, verified) => request(`/admin/users/${id}/identity`, { method: "PATCH", body: { verified } }),
+  setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: "PATCH", body: { role } }),
   getAdminListings: () => request("/admin/listings"),
   setListingStatus: (id, status) => request(`/admin/listings/${id}/status`, { method: "PATCH", body: { status } }),
   setListingFeatured: (id, featured) => request(`/admin/listings/${id}/feature`, { method: "PATCH", body: { featured } }),

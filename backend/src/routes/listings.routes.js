@@ -1,6 +1,6 @@
 const express = require("express");
 const prisma = require("../prismaClient");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, requireVerified } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const { checkAndRecordImage } = require("../services/duplicatePhotoCheck");
 const { getBadges } = require("../utils/trust");
@@ -111,7 +111,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST /api/listings — create a new listing (with photo uploads)
-router.post("/", requireAuth, upload.array("images", 6), async (req, res) => {
+router.post("/", requireAuth, requireVerified, async (req, res) => {
   try {
     const { title, description, price, categoryId, condition, location } = req.body;
     if (!title || !price || !categoryId || !condition || !location) {

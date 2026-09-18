@@ -1,11 +1,10 @@
 const express = require("express");
 const prisma = require("../prismaClient");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, requireVerified } = require("../middleware/auth");
 
 const router = express.Router();
 
-// GET /api/messages/conversations — list of conversations the user is part of
-// A "conversation" = a unique (listing, other participant) pair.
+// GET /api/messages/conversations
 router.get("/conversations", requireAuth, async (req, res) => {
   const messages = await prisma.message.findMany({
     where: { OR: [{ senderId: req.user.id }, { receiverId: req.user.id }] },
@@ -34,7 +33,7 @@ router.get("/conversations", requireAuth, async (req, res) => {
   res.json({ conversations: Array.from(conversations.values()) });
 });
 
-// GET /api/messages/thread/:listingId/:otherUserId — full thread with one user about one listing
+// GET /api/messages/thread/:listingId/:otherUserId
 router.get("/thread/:listingId/:otherUserId", requireAuth, async (req, res) => {
   const { listingId, otherUserId } = req.params;
   const messages = await prisma.message.findMany({
@@ -47,7 +46,6 @@ router.get("/thread/:listingId/:otherUserId", requireAuth, async (req, res) => {
     },
     orderBy: { createdAt: "asc" },
   });
-  // mark incoming messages as read
   await prisma.message.updateMany({
     where: { listingId, senderId: otherUserId, receiverId: req.user.id, readAt: null },
     data: { readAt: new Date() },
@@ -56,7 +54,7 @@ router.get("/thread/:listingId/:otherUserId", requireAuth, async (req, res) => {
 });
 
 // POST /api/messages — send a message about a listing
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireVerified, async (req, res) => {
   try {
     const { listingId, content } = req.body;
     if (!listingId || !content || !content.trim()) {
@@ -65,9 +63,6 @@ router.post("/", requireAuth, async (req, res) => {
     const listing = await prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) return res.status(404).json({ error: "Listing not found" });
 
-    // The receiver is the seller, unless the sender IS the seller — in which
-    // case this endpoint isn't the right one (sellers reply within a thread
-    // using the buyer's id as receiverId, passed explicitly).
     const receiverId = req.body.receiverId || listing.sellerId;
     if (receiverId === req.user.id) {
       return res.status(400).json({ error: "You cannot message yourself about your own listing" });

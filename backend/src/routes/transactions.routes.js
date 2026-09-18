@@ -9,7 +9,7 @@
 
 const express = require("express");
 const prisma = require("../prismaClient");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, requireVerified } = require("../middleware/auth");
 const paystack = require("../services/paystack");
 
 const router = express.Router();
@@ -18,7 +18,7 @@ const PLATFORM_FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT || 5);
 
 // POST /api/transactions
 // Buyer initiates payment for a listing.
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireVerified, async (req, res) => {
   try {
     const { listingId } = req.body;
     if (!listingId) {
@@ -56,8 +56,6 @@ router.post("/", requireAuth, async (req, res) => {
       },
     });
 
-    // Look up whether the seller has a Paystack subaccount set up yet
-    // (User.paystackSubaccountCode — set once a seller completes onboarding).
     const buyer = await prisma.user.findUnique({ where: { id: req.user.id } });
 
     const initResult = await paystack.initializeTransaction({
@@ -84,10 +82,7 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/transactions/mine/:listingId — the logged-in user's own transaction
-// for this listing, if one exists (lets the frontend show "Buy Now" vs
-// "Payment held, confirm receipt" vs "Released" without needing the
-// transaction's own id up front).
+// GET /api/transactions/mine/:listingId
 router.get("/mine/:listingId", requireAuth, async (req, res) => {
   const transaction = await prisma.transaction.findFirst({
     where: {
@@ -120,10 +115,6 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 // POST /api/transactions/:id/confirm-received
-// PHASE1_ASSUMPTION: this duplicates what should eventually be part of
-// Phase 1's review-confirmation flow. When that lands, call
-// releaseTransactionFunds(transactionId) from there instead, and remove
-// (or keep as an internal-only fallback) this route.
 router.post("/:id/confirm-received", requireAuth, async (req, res) => {
   try {
     const transaction = await prisma.transaction.findUnique({
@@ -148,7 +139,7 @@ router.post("/:id/confirm-received", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/transactions/:id/dispute — buyer or seller disputes a paid, held transaction
+// POST /api/transactions/:id/dispute
 router.post("/:id/dispute", requireAuth, async (req, res) => {
   try {
     const { reason, details } = req.body;
@@ -190,16 +181,6 @@ router.post("/:id/dispute", requireAuth, async (req, res) => {
   }
 });
 
-/**
- * Release held funds to the seller. Called from POST /:id/confirm-received
- * above (buyer-initiated), or from an admin action after resolving a
- * dispute in the seller's favor (see admin.routes.js
- * PATCH /admin/disputes/:id/release-funds).
- *
- * NOTE: there is currently no equivalent refundTransaction() for ruling in
- * the BUYER's favor — that needs Paystack's refund API wired into
- * services/paystack.js. Flagged here rather than half-built silently.
- */
 async function releaseTransactionFunds(transactionId) {
   const transaction = await prisma.transaction.findUnique({
     where: { id: transactionId },
@@ -208,20 +189,12 @@ async function releaseTransactionFunds(transactionId) {
 
   if (!transaction) throw new Error("Transaction not found");
 
-  // If the seller had a subaccount, Paystack already split the funds at
-  // payment time — "release" here just means marking our own records.
-  // If NOT (manual-transfer fallback path), this is where we'd actually
-  // call paystack.initiateTransfer() to pay the seller. Left as a TODO
-  // since it depends on whether the seller has bank details on file yet —
-  // build this once the owner confirms the payout model (subaccount vs
-  // manual transfer) they want to use.
   if (!transaction.providerSubaccount) {
     console.warn(
       `Transaction ${transactionId}: no subaccount on file for seller — ` +
       `manual transfer path not yet implemented. Funds are marked ` +
       `released in our records but a real payout call is still needed.`
     );
-    // TODO: paystack.initiateTransfer(...) once payout model is confirmed
   }
 
   await prisma.transaction.update({

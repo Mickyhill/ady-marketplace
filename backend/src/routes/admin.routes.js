@@ -21,7 +21,8 @@ router.get("/stats", async (req, res) => {
   res.json({ users, verifiedUsers, activeListings, soldListings, unresolvedReports, openDisputes });
 });
 
-// GET /api/admin/users — includes computed badges + admin-only risk level
+// GET /api/admin/users — includes computed badges + admin-only risk level,
+// plus who verified this user and when (audit trail).
 router.get("/users", async (req, res) => {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -29,6 +30,8 @@ router.get("/users", async (req, res) => {
       id: true, name: true, email: true, role: true, verificationStatus: true,
       phoneVerified: true, identityVerified: true, rating: true, ratingCount: true,
       department: true, faculty: true, matricNumber: true, studentPortalScreenshotUrl: true, createdAt: true,
+      verifiedAt: true,
+      verifiedBy: { select: { id: true, name: true, email: true } },
     },
   });
 
@@ -75,14 +78,21 @@ router.get("/users", async (req, res) => {
 });
 
 // PATCH /api/admin/users/:id/verify — { status: "VERIFIED" | "REJECTED" }  (drives "AKSU Verified" badge)
+// Also records WHICH admin verified this user and WHEN, whenever status is
+// set to VERIFIED — an audit trail, with zero extra clicks for the admin.
 router.patch("/users/:id/verify", async (req, res) => {
   const { status } = req.body;
   if (!["VERIFIED", "REJECTED", "PENDING", "UNVERIFIED"].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
+  const data = { verificationStatus: status };
+  if (status === "VERIFIED") {
+    data.verifiedById = req.user.id;
+    data.verifiedAt = new Date();
+  }
   const user = await prisma.user.update({
     where: { id: req.params.id },
-    data: { verificationStatus: status },
+    data,
   });
   res.json({ user: { id: user.id, verificationStatus: user.verificationStatus } });
 });
@@ -105,6 +115,26 @@ router.patch("/users/:id/identity", async (req, res) => {
     data: { identityVerified: Boolean(verified) },
   });
   res.json({ user: { id: user.id, identityVerified: user.identityVerified } });
+});
+
+// PATCH /api/admin/users/:id/role — { role: "ADMIN" | "STUDENT" }
+// Lets an existing admin promote a trusted user to admin, or demote one
+// back to a regular student — so verification duties don't rest on one
+// single person. An admin can't demote themselves, so nobody accidentally
+// locks themselves out of the dashboard with no other admin around.
+router.patch("/users/:id/role", async (req, res) => {
+  const { role } = req.body;
+  if (!["ADMIN", "STUDENT"].includes(role)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
+  if (req.params.id === req.user.id && role !== "ADMIN") {
+    return res.status(400).json({ error: "You can't remove your own admin access" });
+  }
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { role },
+  });
+  res.json({ user: { id: user.id, role: user.role } });
 });
 
 // GET /api/admin/listings — every listing regardless of status
@@ -179,8 +209,6 @@ router.get("/disputes", async (req, res) => {
     },
   });
 
-  // Attach the relevant message thread for each dispute so the admin doesn't
-  // have to go dig through Messages separately.
   const withMessages = await Promise.all(
     disputes.map(async (d) => {
       const messages = await prisma.message.findMany({

@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const prisma = require("../prismaClient");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -36,4 +37,28 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, optionalAuth, requireAdmin };
+// Blocks listing, buying, and messaging until an admin has verified the
+// account. Must be used AFTER requireAuth. Does a fresh DB lookup rather
+// than trusting anything on the JWT — req.user only carries { id, email,
+// role } from token issue time, so a user verified by an admin *after*
+// logging in would otherwise stay blocked until their token happened to
+// refresh, which is confusing and avoidable.
+async function requireVerified(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { verificationStatus: true },
+    });
+    if (!user || user.verificationStatus !== "VERIFIED") {
+      return res.status(403).json({
+        error: "Your account needs to be verified by an admin before you can do this. Make sure you've submitted your student portal screenshot — check back soon, or contact support if it's been a while.",
+      });
+    }
+    next();
+  } catch (err) {
+    console.error("requireVerified error:", err);
+    res.status(500).json({ error: "Could not check verification status" });
+  }
+}
+
+module.exports = { requireAuth, optionalAuth, requireAdmin, requireVerified };
