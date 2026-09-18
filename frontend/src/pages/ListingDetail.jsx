@@ -6,6 +6,7 @@ import { resolveUploadUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { formatNaira, CONDITION_LABEL } from "../components/ListingCard";
 import Badges from "../components/Badges";
+import CopyButton from "../components/CopyButton";
 
 const REPORT_REASONS = [
   "Suspected scam",
@@ -170,10 +171,15 @@ export default function ListingDetail() {
       </div>
 
       <div>
-        {listing.status !== "ACTIVE" && (
-          <span className="inline-block mb-2 text-xs px-2 py-1 rounded-full bg-ink-100 text-ink-500 font-medium">{listing.status.replace("_", " ")}</span>
-        )}
-        <h1 className="text-2xl font-semibold">{listing.title}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            {listing.status !== "ACTIVE" && (
+              <span className="inline-block mb-2 text-xs px-2 py-1 rounded-full bg-ink-100 text-ink-500 font-medium">{listing.status.replace("_", " ")}</span>
+            )}
+            <h1 className="text-2xl font-semibold">{listing.title}</h1>
+          </div>
+          <CopyButton text={`${window.location.origin}/listing/${id}`} label="Copy link" />
+        </div>
         <p className="text-2xl text-brand-600 font-semibold mt-2">{formatNaira(listing.price)}</p>
         <p className="text-sm text-ink-500 mt-1">{CONDITION_LABEL[listing.condition]} · {listing.location} · {listing.category?.name}</p>
 
@@ -286,43 +292,4 @@ export default function ListingDetail() {
                   <option value="Item damaged or not working">Item damaged or not working</option>
                   <option value="Other">Other</option>
                 </select>
-                <textarea required placeholder="Describe what happened" value={disputeDetails} onChange={(e) => setDisputeDetails(e.target.value)} rows={2} className="w-full border border-ink-300/50 rounded-md px-2 py-1.5 text-sm" />
-                <div className="flex gap-2">
-                  <button className="text-xs bg-red-600 text-white rounded-md px-3 py-1.5">Open dispute</button>
-                  <button type="button" onClick={() => setShowDispute(false)} className="text-xs border border-ink-300 rounded-md px-3 py-1.5">Cancel</button>
-                </div>
-              </form>
-            )}
-
-            {reviewStatus && <p className="text-xs text-ink-500">{reviewStatus}</p>}
-            {disputeStatus && <p className="text-xs text-ink-500">{disputeStatus}</p>}
-          </div>
-        )}
-
-        {!isOwner && (
-          <div className="mt-4">
-            {!showReport ? (
-              <button onClick={() => setShowReport(true)} className="text-xs text-ink-500 hover:underline">Report this listing</button>
-            ) : (
-              <form onSubmit={handleReport} className="text-sm space-y-2 border border-ink-300/40 rounded-md p-3">
-                <select required value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full border border-ink-300/50 rounded-md px-2 py-1.5 text-sm">
-                  <option value="">Select a reason...</option>
-                  {REPORT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-                <div className="flex gap-2">
-                  <button className="text-xs bg-red-600 text-white rounded-md px-3 py-1.5">Submit report</button>
-                  <button type="button" onClick={() => setShowReport(false)} className="text-xs border border-ink-300 rounded-md px-3 py-1.5">Cancel</button>
-                </div>
-              </form>
-            )}
-            {reportStatus && <p className="text-xs text-ink-500 mt-2">{reportStatus}</p>}
-          </div>
-        )}
-
-        {isOwner && (
-          <Link to="/my-listings" className="mt-6 inline-block text-sm text-brand-600 underline">Manage this listing</Link>
-        )}
-      </div>
-    </div>
-  );
-}
+                <textarea required placeholder="Describe what happened" value={disputeDetails} onChange={(e) =>
