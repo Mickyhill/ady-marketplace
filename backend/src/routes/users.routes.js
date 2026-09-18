@@ -5,13 +5,11 @@ const prisma = require("../prismaClient");
 const { requireAuth } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const { getBadges } = require("../utils/trust");
+const paystack = require("../services/paystack");
 
 const router = express.Router();
 
 function publicProfile(user, badges) {
-  // Deliberately excludes matric number, phone, email, department/faculty
-  // details are shown, but contact info stays private per the trust model
-  // in the product brief: public profile shows identity + reputation only.
   if (user.deletedAt) {
     return {
       id: user.id,
@@ -39,9 +37,51 @@ function publicProfile(user, badges) {
     rating: user.rating,
     ratingCount: user.ratingCount,
     createdAt: user.createdAt,
-    badges, // { phoneVerified, aksuVerified, identityVerified, trustedSeller, trust }
+    badges,
   };
 }
+
+// GET /api/users/me/payout — current payout account status. Mounted before
+// /:id so "me" is never mistaken for a user id.
+router.get("/me/payout", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  res.json({ hasPayoutAccount: !!user.paystackSubaccountCode });
+});
+
+// GET /api/users/me/banks — Nigerian bank list for the payout form's dropdown
+router.get("/me/banks", requireAuth, async (req, res) => {
+  try {
+    const result = await paystack.listBanks();
+    res.json({ banks: result.data.map((b) => ({ name: b.name, code: b.code })) });
+  } catch (err) {
+    console.error("list banks error:", err);
+    res.status(500).json({ error: "Could not load bank list" });
+  }
+});
+
+// POST /api/users/me/payout — connect a bank account for automatic payouts.
+router.post("/me/payout", requireAuth, async (req, res) => {
+  try {
+    const { businessName, bankCode, accountNumber } = req.body;
+    if (!businessName || !bankCode || !accountNumber) {
+      return res.status(400).json({ error: "Account holder name, bank, and account number are all required" });
+    }
+    const result = await paystack.createSubaccount({
+      businessName,
+      bankCode,
+      accountNumber,
+      percentageCharge: Number(process.env.PLATFORM_FEE_PERCENT || 5),
+    });
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { paystackSubaccountCode: result.data.subaccount_code },
+    });
+    res.json({ message: "Payout account connected! Future sales will pay out to this account automatically." });
+  } catch (err) {
+    console.error("payout setup error:", err);
+    res.status(500).json({ error: err.message || "Could not connect payout account. Double check your account number and bank." });
+  }
+});
 
 // GET /api/users/:id — public seller profile
 router.get("/:id", async (req, res) => {
@@ -53,7 +93,7 @@ router.get("/:id", async (req, res) => {
   res.json({ user: publicProfile(user, getBadges(user, unresolvedDisputes)) });
 });
 
-// PATCH /api/users/me — update own profile
+// PATCH /api/users/me/update — update own profile
 router.patch("/me/update", requireAuth, upload.single("avatar"), async (req, res) => {
   try {
     const { name, phone, department, faculty, bio } = req.body;
@@ -74,16 +114,7 @@ router.patch("/me/update", requireAuth, upload.single("avatar"), async (req, res
   }
 });
 
-// DELETE /api/users/me — self-service account deletion. Anonymizes personal
-// data rather than hard-deleting the row, since messages, reviews, and
-// transactions reference this user and shouldn't disappear for the OTHER
-// party involved. Blocked while the user has an open dispute or money
-// actively held in escrow, so a deletion can't be used to dodge a dispute.
-//
-// NOTE: existing JWTs stay valid until their natural 7-day expiry even
-// after deletion (requireAuth only checks the token's signature, not a
-// live DB lookup, for performance) — a known, small residual-access
-// window, not a silent gap.
+// DELETE /api/users/me — self-service account deletion.
 router.delete("/me", requireAuth, async (req, res) => {
   try {
     const [openDispute, heldTransaction] = await Promise.all([
@@ -124,8 +155,6 @@ router.delete("/me", requireAuth, async (req, res) => {
       },
     });
 
-    // Take their active listings off the market — sold ones stay, for the
-    // buyer's own record and any pending review, just showing "Deleted User".
     await prisma.listing.updateMany({
       where: { sellerId: req.user.id, status: "ACTIVE" },
       data: { status: "REMOVED" },

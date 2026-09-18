@@ -51,6 +51,9 @@ export const api = {
   getUser: (id) => request(`/users/${id}`),
   updateProfile: (formData) => request("/users/me/update", { method: "PATCH", body: formData, isMultipart: true }),
   deleteAccount: () => request("/users/me", { method: "DELETE" }),
+  getPayoutStatus: () => request("/users/me/payout"),
+  getBanks: () => request("/users/me/banks"),
+  setupPayout: (payload) => request("/users/me/payout", { method: "POST", body: payload }),
 
   getCategories: () => request("/categories"),
 

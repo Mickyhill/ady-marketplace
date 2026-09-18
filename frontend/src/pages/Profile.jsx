@@ -19,6 +19,13 @@ export default function Profile() {
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState(false);
 
+  const [payoutStatus, setPayoutStatus] = useState(null);
+  const [banks, setBanks] = useState([]);
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ businessName: "", bankCode: "", accountNumber: "" });
+  const [payoutMessage, setPayoutMessage] = useState("");
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+
   useEffect(() => {
     if (isOwnProfile) {
       setProfile(user);
@@ -34,6 +41,12 @@ export default function Profile() {
     }
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (isOwnProfile) {
+      api.getPayoutStatus().then(setPayoutStatus).catch(() => {});
+    }
+  }, [isOwnProfile]);
+
   async function handleSave(e) {
     e.preventDefault();
     setStatus("");
@@ -47,6 +60,32 @@ export default function Profile() {
       setStatus("Profile updated.");
     } catch (err) {
       setStatus(err.message);
+    }
+  }
+
+  async function loadBanksIfNeeded() {
+    if (banks.length > 0) return;
+    try {
+      const d = await api.getBanks();
+      setBanks(d.banks);
+    } catch (err) {
+      setPayoutMessage(err.message);
+    }
+  }
+
+  async function handlePayoutSubmit(e) {
+    e.preventDefault();
+    setPayoutMessage("");
+    setPayoutSubmitting(true);
+    try {
+      const d = await api.setupPayout(payoutForm);
+      setPayoutMessage(d.message);
+      setPayoutStatus({ hasPayoutAccount: true });
+      setShowPayoutForm(false);
+    } catch (err) {
+      setPayoutMessage(err.message);
+    } finally {
+      setPayoutSubmitting(false);
     }
   }
 
@@ -131,6 +170,63 @@ export default function Profile() {
       )}
 
       {status && <p className="text-sm text-ink-500 mt-3">{status}</p>}
+
+      {isOwnProfile && (
+        <div className="mt-6 border-t border-ink-300/40 pt-6">
+          <h2 className="text-sm font-semibold mb-2">Payout details</h2>
+          {payoutStatus?.hasPayoutAccount ? (
+            <p className="text-sm text-green-700">✓ Payout account connected — sales pay out to your bank automatically once a buyer confirms receipt.</p>
+          ) : showPayoutForm ? (
+            <form onSubmit={handlePayoutSubmit} className="space-y-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Account holder name</label>
+                <input
+                  required value={payoutForm.businessName}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, businessName: e.target.value })}
+                  placeholder="Must match your bank account exactly"
+                  className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Bank</label>
+                <select
+                  required value={payoutForm.bankCode}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, bankCode: e.target.value })}
+                  className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="">Select your bank...</option>
+                  {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Account number</label>
+                <input
+                  required value={payoutForm.accountNumber}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, accountNumber: e.target.value })}
+                  className="w-full border border-ink-300/50 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button disabled={payoutSubmitting} className="bg-brand-500 hover:bg-brand-600 text-white rounded-md px-4 py-2 text-sm disabled:opacity-60">
+                  {payoutSubmitting ? "Connecting..." : "Connect account"}
+                </button>
+                <button type="button" onClick={() => setShowPayoutForm(false)} className="border border-ink-300 rounded-md px-4 py-2 text-sm">Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <p className="text-xs text-ink-500 mb-2">Add your bank details so payments from sales go straight to you once a buyer confirms receipt — no manual payout needed.</p>
+              <button
+                onClick={() => { setShowPayoutForm(true); loadBanksIfNeeded(); }}
+                className="text-sm border border-ink-300 rounded-md px-4 py-2 hover:bg-ink-100"
+              >
+                Add payout details
+              </button>
+            </div>
+          )}
+          {payoutMessage && <p className="text-xs text-ink-500 mt-2">{payoutMessage}</p>}
+        </div>
+      )}
 
       {reviews.length > 0 && (
         <div className="mt-8 border-t border-ink-300/40 pt-6">
