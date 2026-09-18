@@ -2,13 +2,12 @@ const express = require("express");
 const prisma = require("../prismaClient");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 const { getBadges, computeRiskLevel } = require("../utils/trust");
-const { releaseTransactionFunds } = require("./transactions.routes");
+const { releaseTransactionFunds, refundTransactionToBuyer } = require("./transactions.routes");
 
 const router = express.Router();
 
 router.use(requireAuth, requireAdmin);
 
-// GET /api/admin/stats
 router.get("/stats", async (req, res) => {
   const [users, verifiedUsers, activeListings, soldListings, unresolvedReports, openDisputes] = await Promise.all([
     prisma.user.count(),
@@ -21,8 +20,6 @@ router.get("/stats", async (req, res) => {
   res.json({ users, verifiedUsers, activeListings, soldListings, unresolvedReports, openDisputes });
 });
 
-// GET /api/admin/users — includes computed badges + admin-only risk level,
-// plus who verified this user and when (audit trail).
 router.get("/users", async (req, res) => {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -35,8 +32,6 @@ router.get("/users", async (req, res) => {
     },
   });
 
-  // Tally unresolved reports, open disputes, and unresolved risk flags per
-  // user in one pass each, rather than one query per user.
   const [unresolvedReports, openDisputes, unresolvedFlags] = await Promise.all([
     prisma.report.findMany({ where: { resolved: false }, select: { listing: { select: { sellerId: true } } } }),
     prisma.dispute.findMany({ where: { status: "OPEN" }, select: { sellerId: true } }),
@@ -70,16 +65,13 @@ router.get("/users", async (req, res) => {
         unresolvedDisputesAgainst,
         accountAgeDays,
         unresolvedRiskFlags: flagCounts[u.id] || { yellow: 0, red: 0 },
-      }).level, // only the level (LOW/NORMAL/REVIEW/HIGH) leaves this endpoint, never the raw score
+      }).level,
     };
   });
 
   res.json({ users: enriched });
 });
 
-// PATCH /api/admin/users/:id/verify — { status: "VERIFIED" | "REJECTED" }  (drives "AKSU Verified" badge)
-// Also records WHICH admin verified this user and WHEN, whenever status is
-// set to VERIFIED — an audit trail, with zero extra clicks for the admin.
 router.patch("/users/:id/verify", async (req, res) => {
   const { status } = req.body;
   if (!["VERIFIED", "REJECTED", "PENDING", "UNVERIFIED"].includes(status)) {
@@ -97,7 +89,6 @@ router.patch("/users/:id/verify", async (req, res) => {
   res.json({ user: { id: user.id, verificationStatus: user.verificationStatus } });
 });
 
-// PATCH /api/admin/users/:id/phone — { verified: true|false }  ("Phone Verified" badge — manual until Phase 2's real OTP)
 router.patch("/users/:id/phone", async (req, res) => {
   const { verified } = req.body;
   const user = await prisma.user.update({
@@ -107,7 +98,6 @@ router.patch("/users/:id/phone", async (req, res) => {
   res.json({ user: { id: user.id, phoneVerified: user.phoneVerified } });
 });
 
-// PATCH /api/admin/users/:id/identity — { verified: true|false }  ("Identity Verified" badge)
 router.patch("/users/:id/identity", async (req, res) => {
   const { verified } = req.body;
   const user = await prisma.user.update({
@@ -117,11 +107,6 @@ router.patch("/users/:id/identity", async (req, res) => {
   res.json({ user: { id: user.id, identityVerified: user.identityVerified } });
 });
 
-// PATCH /api/admin/users/:id/role — { role: "ADMIN" | "STUDENT" }
-// Lets an existing admin promote a trusted user to admin, or demote one
-// back to a regular student — so verification duties don't rest on one
-// single person. An admin can't demote themselves, so nobody accidentally
-// locks themselves out of the dashboard with no other admin around.
 router.patch("/users/:id/role", async (req, res) => {
   const { role } = req.body;
   if (!["ADMIN", "STUDENT"].includes(role)) {
@@ -137,7 +122,6 @@ router.patch("/users/:id/role", async (req, res) => {
   res.json({ user: { id: user.id, role: user.role } });
 });
 
-// GET /api/admin/listings — every listing regardless of status
 router.get("/listings", async (req, res) => {
   const listings = await prisma.listing.findMany({
     orderBy: { createdAt: "desc" },
@@ -146,7 +130,6 @@ router.get("/listings", async (req, res) => {
   res.json({ listings });
 });
 
-// PATCH /api/admin/listings/:id/status — { status: "ACTIVE" | "REMOVED" | ... }
 router.patch("/listings/:id/status", async (req, res) => {
   const { status } = req.body;
   if (!["ACTIVE", "SOLD", "REMOVED", "PENDING_REVIEW"].includes(status)) {
@@ -156,7 +139,6 @@ router.patch("/listings/:id/status", async (req, res) => {
   res.json({ listing });
 });
 
-// PATCH /api/admin/listings/:id/feature — { featured: true|false }
 router.patch("/listings/:id/feature", async (req, res) => {
   const { featured } = req.body;
   const listing = await prisma.listing.update({
@@ -166,9 +148,6 @@ router.patch("/listings/:id/feature", async (req, res) => {
   res.json({ listing });
 });
 
-// PATCH /api/admin/listings/:id/inspect — { inspected: true|false }  ("Item Inspected" badge —
-// deliberately SEPARATE from any seller-verification field; a verified student is not the same
-// claim as a verified item, see the schema comment on Listing.itemVerified)
 router.patch("/listings/:id/inspect", async (req, res) => {
   const { inspected } = req.body;
   const listing = await prisma.listing.update({
@@ -178,7 +157,6 @@ router.patch("/listings/:id/inspect", async (req, res) => {
   res.json({ listing });
 });
 
-// GET /api/admin/reports
 router.get("/reports", async (req, res) => {
   const reports = await prisma.report.findMany({
     orderBy: { createdAt: "desc" },
@@ -190,14 +168,11 @@ router.get("/reports", async (req, res) => {
   res.json({ reports });
 });
 
-// PATCH /api/admin/reports/:id/resolve
 router.patch("/reports/:id/resolve", async (req, res) => {
   const report = await prisma.report.update({ where: { id: req.params.id }, data: { resolved: true } });
   res.json({ report });
 });
 
-// GET /api/admin/disputes — full context for each open dispute: listing,
-// both accounts, and the message thread between them about that listing.
 router.get("/disputes", async (req, res) => {
   const disputes = await prisma.dispute.findMany({
     orderBy: { createdAt: "desc" },
@@ -228,7 +203,6 @@ router.get("/disputes", async (req, res) => {
   res.json({ disputes: withMessages });
 });
 
-// PATCH /api/admin/disputes/:id/resolve — { status: "RESOLVED" | "REJECTED" }
 router.patch("/disputes/:id/resolve", async (req, res) => {
   const { status } = req.body;
   if (!["RESOLVED", "REJECTED"].includes(status)) {
@@ -238,7 +212,6 @@ router.patch("/disputes/:id/resolve", async (req, res) => {
   res.json({ dispute });
 });
 
-// GET /api/admin/risk-flags — automated Phase 2 fraud signals (device/photo)
 router.get("/risk-flags", async (req, res) => {
   const flags = await prisma.riskFlag.findMany({
     orderBy: { createdAt: "desc" },
@@ -250,16 +223,11 @@ router.get("/risk-flags", async (req, res) => {
   res.json({ flags });
 });
 
-// PATCH /api/admin/risk-flags/:id/resolve
 router.patch("/risk-flags/:id/resolve", async (req, res) => {
   const flag = await prisma.riskFlag.update({ where: { id: req.params.id }, data: { resolved: true } });
   res.json({ flag });
 });
 
-// PATCH /api/admin/disputes/:id/release-funds — explicit admin action to
-// release a disputed transaction's held funds to the seller. Deliberately
-// a separate, explicit click rather than something triggered automatically
-// by changing the dispute's status — this moves real money.
 router.patch("/disputes/:id/release-funds", async (req, res) => {
   try {
     const dispute = await prisma.dispute.findUnique({
@@ -275,6 +243,24 @@ router.patch("/disputes/:id/release-funds", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not release funds" });
+  }
+});
+
+router.patch("/disputes/:id/refund-buyer", async (req, res) => {
+  try {
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: req.params.id },
+      include: { transaction: true },
+    });
+    if (!dispute) return res.status(404).json({ error: "Dispute not found" });
+    if (!dispute.transaction) {
+      return res.status(400).json({ error: "This dispute has no linked payment to refund" });
+    }
+    await refundTransactionToBuyer(dispute.transaction.id);
+    res.json({ message: "Funds refunded to buyer" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Could not refund buyer" });
   }
 });
 

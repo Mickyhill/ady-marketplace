@@ -97,6 +97,17 @@ export default function Admin() {
     }
   }
 
+  async function handleRefundBuyer(id) {
+    setActionStatus("");
+    try {
+      await api.refundDisputeBuyer(id);
+      setActionStatus("Funds refunded to buyer.");
+      loadAll();
+    } catch (err) {
+      setActionStatus(err.message);
+    }
+  }
+
   async function handleFlagResolve(id) {
     await api.resolveRiskFlag(id);
     loadAll();
@@ -270,16 +281,16 @@ export default function Admin() {
                   </>
                 )}
                 {d.transaction && d.transaction.status === "DISPUTED" && (
-                  <button onClick={() => handleReleaseFunds(d.id)} className="text-xs bg-brand-500 text-white rounded-md px-3 py-1.5">
-                    Rule for seller — release funds
-                  </button>
+                  <>
+                    <button onClick={() => handleReleaseFunds(d.id)} className="text-xs bg-brand-500 text-white rounded-md px-3 py-1.5">
+                      Rule for seller — release funds
+                    </button>
+                    <button onClick={() => handleRefundBuyer(d.id)} className="text-xs bg-ink-900 text-white rounded-md px-3 py-1.5">
+                      Rule for buyer — refund
+                    </button>
+                  </>
                 )}
               </div>
-              {d.transaction && d.transaction.status === "DISPUTED" && (
-                <p className="text-xs text-ink-500 mt-1">
-                  No refund-to-buyer action yet — that needs Paystack's refund API wired in separately.
-                </p>
-              )}
             </div>
           ))}
         </div>

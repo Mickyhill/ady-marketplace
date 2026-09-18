@@ -1,12 +1,4 @@
 // Escrow-style transaction routes.
-//
-// "Buyer confirms item received" (POST /:id/confirm-received below) is its
-// own quick action, separate from Phase 1's review flow (POST /api/reviews)
-// — confirming releases the seller's funds; leaving a review is optional,
-// richer feedback afterward. They're independent by design, matching the
-// original spec's distinction between transaction confirmation and
-// reputation/reviews.
-
 const express = require("express");
 const prisma = require("../prismaClient");
 const { requireAuth, requireVerified } = require("../middleware/auth");
@@ -16,8 +8,17 @@ const router = express.Router();
 
 const PLATFORM_FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT || 5);
 
-// POST /api/transactions
-// Buyer initiates payment for a listing.
+const RESERVED_TEST_TLDS = [".test", ".example", ".invalid", ".localhost"];
+function paystackSafeEmail(email) {
+  const lower = email.toLowerCase();
+  for (const tld of RESERVED_TEST_TLDS) {
+    if (lower.endsWith(tld)) {
+      return email.slice(0, -tld.length) + ".ady-testaccount.com";
+    }
+  }
+  return email;
+}
+
 router.post("/", requireAuth, requireVerified, async (req, res) => {
   try {
     const { listingId } = req.body;
@@ -59,7 +60,7 @@ router.post("/", requireAuth, requireVerified, async (req, res) => {
     const buyer = await prisma.user.findUnique({ where: { id: req.user.id } });
 
     const initResult = await paystack.initializeTransaction({
-      email: buyer.email,
+      email: paystackSafeEmail(buyer.email),
       amountKobo: totalAmountKobo,
       reference: transaction.id,
       subaccountCode: listing.seller.paystackSubaccountCode || undefined,
@@ -82,7 +83,6 @@ router.post("/", requireAuth, requireVerified, async (req, res) => {
   }
 });
 
-// GET /api/transactions/mine/:listingId
 router.get("/mine/:listingId", requireAuth, async (req, res) => {
   const transaction = await prisma.transaction.findFirst({
     where: {
@@ -94,7 +94,6 @@ router.get("/mine/:listingId", requireAuth, async (req, res) => {
   res.json({ transaction });
 });
 
-// GET /api/transactions/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const transaction = await prisma.transaction.findUnique({
@@ -114,7 +113,6 @@ router.get("/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/transactions/:id/confirm-received
 router.post("/:id/confirm-received", requireAuth, async (req, res) => {
   try {
     const transaction = await prisma.transaction.findUnique({
@@ -139,7 +137,6 @@ router.post("/:id/confirm-received", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/transactions/:id/dispute
 router.post("/:id/dispute", requireAuth, async (req, res) => {
   try {
     const { reason, details } = req.body;
@@ -191,9 +188,7 @@ async function releaseTransactionFunds(transactionId) {
 
   if (!transaction.providerSubaccount) {
     console.warn(
-      `Transaction ${transactionId}: no subaccount on file for seller — ` +
-      `manual transfer path not yet implemented. Funds are marked ` +
-      `released in our records but a real payout call is still needed.`
+      `Transaction ${transactionId}: no subaccount on file for seller — manual transfer path not yet implemented.`
     );
   }
 
@@ -203,5 +198,27 @@ async function releaseTransactionFunds(transactionId) {
   });
 }
 
+async function refundTransactionToBuyer(transactionId) {
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+  });
+
+  if (!transaction) throw new Error("Transaction not found");
+  if (!["HELD", "DISPUTED"].includes(transaction.status)) {
+    throw new Error(`Cannot refund — transaction is ${transaction.status}`);
+  }
+  if (!transaction.providerReference) {
+    throw new Error("This transaction has no payment reference to refund");
+  }
+
+  await paystack.refundTransaction(transaction.providerReference, transaction.totalAmount);
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: { status: "REFUNDED", refundedAt: new Date() },
+  });
+}
+
 module.exports = router;
 module.exports.releaseTransactionFunds = releaseTransactionFunds;
+module.exports.refundTransactionToBuyer = refundTransactionToBuyer;

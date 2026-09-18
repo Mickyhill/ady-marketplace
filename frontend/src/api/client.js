@@ -92,6 +92,7 @@ export const api = {
   getAdminDisputes: () => request("/admin/disputes"),
   resolveDispute: (id, status) => request(`/admin/disputes/${id}/resolve`, { method: "PATCH", body: { status } }),
   releaseDisputeFunds: (id) => request(`/admin/disputes/${id}/release-funds`, { method: "PATCH" }),
+  refundDisputeBuyer: (id) => request(`/admin/disputes/${id}/refund-buyer`, { method: "PATCH" }),
   getAdminRiskFlags: () => request("/admin/risk-flags"),
   resolveRiskFlag: (id) => request(`/admin/risk-flags/${id}/resolve`, { method: "PATCH" }),
 

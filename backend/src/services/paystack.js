@@ -49,16 +49,6 @@ async function paystackRequest(path, options = {}) {
   return data;
 }
 
-/**
- * Initialize a payment for a transaction. Buyer is redirected to
- * data.data.authorization_url to complete payment.
- * @param {object} params
- * @param {string} params.email - buyer's email
- * @param {number} params.amountKobo - total amount in kobo (NGN * 100)
- * @param {string} params.reference - unique reference, should match our Transaction.id
- * @param {string} [params.subaccountCode] - seller's Paystack subaccount, for auto-split
- * @param {number} [params.platformFeeKobo] - platform's cut, in kobo, when using a subaccount split
- */
 async function initializeTransaction({ email, amountKobo, reference, subaccountCode, platformFeeKobo, callbackUrl }) {
   const body = {
     email,
@@ -67,16 +57,11 @@ async function initializeTransaction({ email, amountKobo, reference, subaccountC
     callback_url: callbackUrl,
   };
 
-  // If the seller has a subaccount set up, Paystack auto-splits the payment
-  // at settlement time — this is what gives us "escrow-ish" behavior without
-  // us ever directly holding customer funds. If no subaccount exists yet
-  // (seller hasn't onboarded), fall back to holding the full amount in the
-  // platform account and doing a manual transfer later via releaseFunds().
   if (subaccountCode) {
     body.subaccount = subaccountCode;
     if (platformFeeKobo != null) {
       body.transaction_charge = platformFeeKobo;
-      body.bearer = "subaccount"; // seller's subaccount bears Paystack's own processing fee
+      body.bearer = "subaccount";
     }
   }
 
@@ -86,24 +71,12 @@ async function initializeTransaction({ email, amountKobo, reference, subaccountC
   });
 }
 
-/**
- * Verify a transaction's status directly with Paystack (don't trust
- * client-side redirect state alone — always re-verify server-side).
- */
 async function verifyTransaction(reference) {
   return paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, {
     method: "GET",
   });
 }
 
-/**
- * For the manual-transfer fallback path (seller has no subaccount yet):
- * initiate a payout from the platform's Paystack balance to the seller's
- * bank account. Requires the seller to have provided bank details, and
- * requires the PLATFORM's Paystack account to have transfers enabled
- * (this typically DOES require completed business KYC — test mode transfer
- * simulation is available but real payouts need it).
- */
 async function initiateTransfer({ amountKobo, recipientCode, reason, reference }) {
   return paystackRequest("/transfer", {
     method: "POST",
@@ -117,10 +90,6 @@ async function initiateTransfer({ amountKobo, recipientCode, reason, reference }
   });
 }
 
-/**
- * Create a transfer recipient (seller's bank account) — needed before
- * initiateTransfer can pay them out, if not using the subaccount-split path.
- */
 async function createTransferRecipient({ name, accountNumber, bankCode }) {
   return paystackRequest("/transferrecipient", {
     method: "POST",
@@ -135,10 +104,22 @@ async function createTransferRecipient({ name, accountNumber, bankCode }) {
 }
 
 /**
- * Verify a webhook's signature. Paystack signs webhook payloads with
- * HMAC-SHA512 using the secret key. NEVER process a webhook without this
- * check — the handoff doc explicitly calls this out as a common gap.
+ * Refund a transaction to the buyer — the counterpart to releasing funds to
+ * the seller. Used when an admin rules a dispute in the BUYER's favor.
+ * Paystack refunds the buyer's original payment method directly; no
+ * transfer/recipient setup needed, unlike paying out a seller.
+ * @param {string} reference - the original transaction's Paystack reference
+ * @param {number} [amountKobo] - partial refund amount; omit for a full refund
  */
+async function refundTransaction(reference, amountKobo) {
+  const body = { transaction: reference };
+  if (amountKobo != null) body.amount = amountKobo;
+  return paystackRequest("/refund", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 function verifyWebhookSignature(rawBody, signatureHeader) {
   const crypto = require("crypto");
   const hash = crypto
@@ -153,5 +134,6 @@ module.exports = {
   verifyTransaction,
   initiateTransfer,
   createTransferRecipient,
+  refundTransaction,
   verifyWebhookSignature,
 };
