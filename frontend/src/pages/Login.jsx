@@ -373,7 +373,12 @@ export default function Login() {
   const StoryIcon = story.icon;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    // While the intro hasn't finished, this becomes a fixed, full-viewport
+    // overlay — it sits on top of the site's navbar/ticker/footer (which
+    // render outside this component, in App.jsx) rather than appearing
+    // alongside them. Once introDone flips true, it drops back into normal
+    // page flow and the rest of the site's chrome becomes visible again.
+    <div className={introDone ? "min-h-screen bg-slate-50" : "fixed inset-0 z-50 overflow-y-auto bg-slate-50"}>
       <div className={`grid min-h-screen ${introDone ? "lg:grid-cols-2" : ""}`}>
         <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50">
           <div className="ambient-orb ambient-orb-one pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-orange-200/30 blur-3xl" />
