@@ -277,88 +277,81 @@ const stories = [
     ),
   },
 ];
-
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // The pitch has stories.length (3) slides. Reaching the login form counts
+  // as one more "page" on top of that — activeStory === stories.length
+  // means "on the login page". There are 4 total pages this way, but only
+  // the first 3 are entries in the `stories` array; the 4th is the real,
+  // functional login form, built specially below rather than as static
+  // slide data (it needs live form state, not just JSX).
   const [activeStory, setActiveStory] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  // Login form stays hidden until the intro has played through once (or
-  // the user skips it) — the pitch finishes, then the actual action shows.
-  const [introDone, setIntroDone] = useState(false);
+  const reachedLogin = activeStory === stories.length;
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Auto-advance only while still on a pitch slide. Once activeStory
+  // reaches stories.length (the login page), this effect's condition is
+  // false and it simply stops — no loop back to the start, and no further
+  // advancing past login, since login is the end of the line.
   useEffect(() => {
-    if (isPaused || introDone) return;
+    if (isPaused || reachedLogin) return;
 
     const timer = setTimeout(() => {
-      if (activeStory === stories.length - 1) {
-        setIntroDone(true);
-        return;
-      }
       setActiveStory((current) => current + 1);
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [activeStory, isPaused, introDone]);
+  }, [activeStory, isPaused, reachedLogin]);
 
   function togglePause() {
+    if (reachedLogin) return;
     setIsPaused((current) => !current);
   }
 
   function previousStory(e) {
     e.stopPropagation();
+    // One-way gate: once you've reached the login page, there's no going
+    // back to re-watch the pitch — this button simply won't fire past it.
+    if (reachedLogin) return;
     setIsPaused(false);
-
-    setActiveStory(
-      (current) => (current - 1 + stories.length) % stories.length
-    );
+    setActiveStory((current) => Math.max(0, current - 1));
   }
 
   function nextStory(e) {
     e.stopPropagation();
+    if (reachedLogin) return;
     setIsPaused(false);
-
-    if (activeStory === stories.length - 1) {
-      setIntroDone(true);
-      return;
-    }
     setActiveStory((current) => current + 1);
   }
 
-  function skipIntro(e) {
+  function selectStory(index, e) {
     e.stopPropagation();
-    setIntroDone(true);
-  }
-
-  function selectStory(index) {
+    if (reachedLogin) return;
     setIsPaused(false);
     setActiveStory(index);
   }
 
+  function skipToLogin(e) {
+    e.stopPropagation();
+    setActiveStory(stories.length);
+  }
+
   function update(field) {
     return (e) =>
-      setForm((current) => ({
-        ...current,
-        [field]: e.target.value,
-      }));
+      setForm((current) => ({ ...current, [field]: e.target.value }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-
     setError("");
     setLoading(true);
-
     try {
       await login(form.email, form.password);
       navigate(location.state?.from || "/");
@@ -369,308 +362,220 @@ export default function Login() {
     }
   }
 
+  // ===========================================================
+  // PAGE 4: the real login form. Rendered in normal page flow —
+  // the site's navbar/footer (in App.jsx, outside this component)
+  // become visible around it, same as any other page.
+  // ===========================================================
+  if (reachedLogin) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center bg-white px-6 py-10">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex items-center gap-3">
+            <img src="/ady-logo.svg" alt="ADY Marketplace" className="h-11 w-11 object-contain" />
+            <div>
+              <p className="text-lg font-bold tracking-tight text-slate-900">ADY Marketplace</p>
+              <p className="text-xs text-slate-500">AKSU Campus</p>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50">
+              <Store className="h-6 w-6 text-orange-600" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Welcome back</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Log in to continue buying, selling, and connecting on campus.</p>
+          </div>
+
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">Email address</label>
+              <input
+                id="email" type="email" value={form.email} onChange={update("email")}
+                placeholder="you@example.com" required autoComplete="email"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+              />
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">Password</label>
+                <Link to="/forgot-password" className="text-xs font-medium text-orange-600 transition hover:text-orange-700">Forgot password?</Link>
+              </div>
+              <PasswordInput value={form.password} onChange={update("password")} />
+            </div>
+
+            <button
+              type="submit" disabled={loading}
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Logging in...
+                </>
+              ) : (
+                <>
+                  Log in
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="my-7 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs text-slate-400">OR</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <p className="text-center text-sm text-slate-500">
+            Don't have an account? <Link to="/register" className="font-semibold text-orange-600 transition hover:text-orange-700">Create one</Link>
+          </p>
+
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
+            <ShieldCheck className="h-4 w-4" />
+            Built for safer campus buying and selling
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================
+  // PAGES 1-3: the pitch. Fixed, full-viewport overlay — sits on
+  // top of the site's navbar/ticker/footer rather than alongside
+  // them, so only the pitch is visible until it's done.
+  // ===========================================================
   const story = stories[activeStory];
   const StoryIcon = story.icon;
 
   return (
-    // While the intro hasn't finished, this becomes a fixed, full-viewport
-    // overlay — it sits on top of the site's navbar/ticker/footer (which
-    // render outside this component, in App.jsx) rather than appearing
-    // alongside them. Once introDone flips true, it drops back into normal
-    // page flow and the rest of the site's chrome becomes visible again.
-    <div className={introDone ? "min-h-screen bg-slate-50" : "fixed inset-0 z-50 overflow-y-auto bg-slate-50"}>
-      <div className={`grid min-h-screen ${introDone ? "lg:grid-cols-2" : ""}`}>
-        <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50">
-          <div className="ambient-orb ambient-orb-one pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-orange-200/30 blur-3xl" />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      <div className="ambient-orb ambient-orb-one pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-orange-200/30 blur-3xl" />
+      <div className="ambient-orb ambient-orb-two pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl" />
+      <div className="ambient-orb ambient-orb-three pointer-events-none absolute left-[45%] top-[30%] h-40 w-40 rounded-full bg-orange-100/40 blur-3xl" />
 
-          <div className="ambient-orb ambient-orb-two pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl" />
-
-          <div className="ambient-orb ambient-orb-three pointer-events-none absolute left-[45%] top-[30%] h-40 w-40 rounded-full bg-orange-100/40 blur-3xl" />
-
-          <div className="relative flex flex-col justify-between p-6 py-10 lg:min-h-screen lg:p-10 xl:p-14">
-            <div className="motion-logo flex items-center gap-2 lg:gap-3">
-              <img
-                src="/ady-logo.svg"
-                alt="ADY Marketplace"
-                className="h-8 w-8 object-contain lg:h-11 lg:w-11"
-              />
-
-              <div>
-                <p className="text-sm font-bold tracking-tight text-slate-900 lg:text-lg">
-                  ADY Marketplace
-                </p>
-
-                <p className="text-[10px] text-slate-500 lg:text-xs">AKSU Campus</p>
-              </div>
-            </div>
-
-            <div
-              className={`story-interaction relative flex flex-1 cursor-pointer items-center py-3 lg:py-10 ${
-                isPaused ? "story-paused" : ""
-              }`}
-              onClick={togglePause}
-              onTouchStart={togglePause}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  togglePause();
-                }
-              }}
-              aria-label={
-                isPaused
-                  ? "Story paused. Tap to continue."
-                  : "Story playing. Tap to pause."
-              }
-            >
-              <div className="w-full">
-                <div
-                  key={`visual-${activeStory}`}
-                  className="story-visual-enter"
-                >
-                  {story.visual}
-                </div>
-
-                <div
-                  key={`text-${activeStory}`}
-                  className="story-text-enter mx-auto max-w-xl"
-                >
-                  <div className="mb-2 flex items-center gap-3 lg:mb-5">
-                    <div
-                      className={`story-icon flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${story.accent} text-white shadow-lg lg:h-11 lg:w-11 lg:rounded-2xl`}
-                    >
-                      <StoryIcon className="h-4 w-4 lg:h-5 lg:w-5" />
-                    </div>
-
-                    <span className="text-xs font-semibold uppercase tracking-[0.15em] text-orange-600 lg:text-sm lg:tracking-[0.18em]">
-                      ADY Marketplace
-                    </span>
-                  </div>
-
-                  <h2 className="max-w-xl text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-4xl xl:text-5xl">
-                    {story.heading}
-                  </h2>
-
-                  <div className="mt-2 max-w-lg text-xs leading-5 sm:mt-3 sm:text-sm sm:leading-6 lg:mt-5 lg:text-base lg:leading-7">
-                    {story.body}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-center gap-3">
-                  <div
-                    className={`pause-hint inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium shadow-sm backdrop-blur transition-all duration-300 ${
-                      isPaused
-                        ? "border-orange-200 bg-orange-50 text-orange-700"
-                        : "border-slate-200 bg-white/80 text-slate-500"
-                    }`}
-                  >
-                    {isPaused ? (
-                      <>
-                        <Play className="h-3.5 w-3.5" />
-                        Paused · Tap to continue
-                      </>
-                    ) : (
-                      <>
-                        <Pause className="h-3.5 w-3.5" />
-                        Tap to pause
-                      </>
-                    )}
-                  </div>
-
-                  {!introDone && (
-                    <button
-                      type="button"
-                      onClick={skipIntro}
-                      className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-medium text-slate-500 shadow-sm backdrop-blur transition hover:border-orange-200 hover:text-orange-600"
-                    >
-                      Skip to login
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={previousStory}
-                  className="motion-button flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-600"
-                  aria-label="Previous story"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={nextStory}
-                  className="motion-button flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-600"
-                  aria-label="Next story"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {stories.map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      selectStory(index);
-                    }}
-                    aria-label={`Go to story ${index + 1}`}
-                    className={`story-dot relative h-2 overflow-hidden rounded-full transition-all duration-300 ${
-                      activeStory === index
-                        ? "w-10 bg-orange-100"
-                        : "w-2 bg-slate-300 hover:bg-slate-400"
-                    }`}
-                  >
-                    {activeStory === index && !isPaused && (
-                      <span className="story-progress absolute inset-y-0 left-0 rounded-full bg-orange-500" />
-                    )}
-
-                    {activeStory === index && isPaused && (
-                      <span className="absolute inset-0 rounded-full bg-orange-500" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="text-xs font-medium text-slate-400">
-                {activeStory + 1} / {stories.length}
-              </div>
-            </div>
+      <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col justify-between px-6 py-6 lg:px-10 lg:py-10">
+        <div className="motion-logo flex items-center gap-2 lg:gap-3">
+          <img src="/ady-logo.svg" alt="ADY Marketplace" className="h-8 w-8 object-contain lg:h-11 lg:w-11" />
+          <div>
+            <p className="text-sm font-bold tracking-tight text-slate-900 lg:text-lg">ADY Marketplace</p>
+            <p className="text-[10px] text-slate-500 lg:text-xs">AKSU Campus</p>
           </div>
-        </section>
+        </div>
 
-        {introDone && (
-        <section className="flex min-h-screen items-center justify-center bg-white px-6 py-10">
-          <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center gap-3 lg:hidden">
-              <img
-                src="/ady-logo.svg"
-                alt="ADY Marketplace"
-                className="h-11 w-11 object-contain"
-              />
-
-              <div>
-                <p className="text-lg font-bold tracking-tight text-slate-900">
-                  ADY Marketplace
-                </p>
-
-                <p className="text-xs text-slate-500">AKSU Campus</p>
-              </div>
+        <div
+          className={`story-interaction relative flex flex-1 cursor-pointer items-center py-3 lg:py-10 ${isPaused ? "story-paused" : ""}`}
+          onClick={togglePause}
+          onTouchStart={togglePause}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              togglePause();
+            }
+          }}
+          aria-label={isPaused ? "Story paused. Tap to continue." : "Story playing. Tap to pause."}
+        >
+          <div className="w-full">
+            <div key={`visual-${activeStory}`} className="story-visual-enter">
+              {story.visual}
             </div>
 
-            <div className="login-heading mb-8">
-              <div className="login-icon mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50">
-                <Store className="h-6 w-6 text-orange-600" />
-              </div>
-
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                Welcome back
-              </h1>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Log in to continue buying, selling, and connecting on campus.
-              </p>
-            </div>
-
-            {error && (
-              <div className="error-message mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="form-field">
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Email address
-                </label>
-
-                <input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={update("email")}
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
-                />
-              </div>
-
-              <div className="form-field">
-                <div className="mb-2 flex items-center justify-between">
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-slate-700"
-                  >
-                    Password
-                  </label>
-
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs font-medium text-orange-600 transition hover:text-orange-700"
-                  >
-                    Forgot password?
-                  </Link>
+            <div key={`text-${activeStory}`} className="story-text-enter mx-auto max-w-xl">
+              <div className="mb-2 flex items-center gap-3 lg:mb-5">
+                <div className={`story-icon flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${story.accent} text-white shadow-lg lg:h-11 lg:w-11 lg:rounded-2xl`}>
+                  <StoryIcon className="h-4 w-4 lg:h-5 lg:w-5" />
                 </div>
-
-                <PasswordInput
-                  value={form.password}
-                  onChange={update("password")}
-                />
+                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-orange-600 lg:text-sm lg:tracking-[0.18em]">ADY Marketplace</span>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="login-button group flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              <h2 className="max-w-xl text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-4xl xl:text-5xl">
+                {story.heading}
+              </h2>
+
+              <div className="mt-2 max-w-lg text-xs leading-5 sm:mt-3 sm:text-sm sm:leading-6 lg:mt-5 lg:text-base lg:leading-7">
+                {story.body}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <div
+                className={`pause-hint inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium shadow-sm backdrop-blur transition-all duration-300 ${
+                  isPaused ? "border-orange-200 bg-orange-50 text-orange-700" : "border-slate-200 bg-white/80 text-slate-500"
+                }`}
               >
-                {loading ? (
+                {isPaused ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    Logging in...
+                    <Play className="h-3.5 w-3.5" />
+                    Paused · Tap to continue
                   </>
                 ) : (
                   <>
-                    Log in
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    <Pause className="h-3.5 w-3.5" />
+                    Tap to pause
                   </>
                 )}
-              </button>
-            </form>
+              </div>
 
-            <div className="my-7 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs text-slate-400">OR</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <p className="text-center text-sm text-slate-500">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="font-semibold text-orange-600 transition hover:text-orange-700"
+              <button
+                type="button"
+                onClick={skipToLogin}
+                className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-medium text-slate-500 shadow-sm backdrop-blur transition hover:border-orange-200 hover:text-orange-600"
               >
-                Create one
-              </Link>
-            </p>
-
-            <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <ShieldCheck className="h-4 w-4" />
-              Built for safer campus buying and selling
+                Skip to login
+              </button>
             </div>
           </div>
-        </section>
-        )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={previousStory}
+            disabled={activeStory === 0}
+            className="motion-button flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Previous"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            {[...stories, { isLoginDot: true }].map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={(e) => (index === stories.length ? skipToLogin(e) : selectStory(index, e))}
+                aria-label={`Go to page ${index + 1}`}
+                className={`story-dot relative h-2 overflow-hidden rounded-full transition-all duration-300 ${
+                  activeStory === index ? "w-10 bg-orange-100" : "w-2 bg-slate-300 hover:bg-slate-400"
+                }`}
+              >
+                {activeStory === index && !isPaused && (
+                  <span className="story-progress absolute inset-y-0 left-0 rounded-full bg-orange-500" />
+                )}
+                {activeStory === index && isPaused && (
+                  <span className="absolute inset-0 rounded-full bg-orange-500" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={nextStory}
+            className="motion-button flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-600"
+            aria-label="Next"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <style>{`
