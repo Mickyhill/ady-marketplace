@@ -2,14 +2,12 @@
 //
 // PHASE1_ASSUMPTION: none — this is fully self-contained.
 //
-// The owner hasn't chosen a provider yet (Termii vs Africa's Talking).
-// This file isolates that choice to ONE place. Once they sign up and hand
-// over an API key, only this file needs a real implementation swapped in —
-// nothing in otp.routes.js needs to change.
+// This file isolates the provider choice to ONE place. Once a real
+// SMS_PROVIDER_API_KEY is set, only this file needs touching — nothing in
+// otp.routes.js needs to change.
 //
 // Until SMS_PROVIDER_API_KEY is set in .env, this falls back to a DEV MODE
 // that logs the OTP to the server console instead of sending a real SMS.
-// This lets the whole OTP flow be built and tested end-to-end right now.
 
 const DEV_MODE = !process.env.SMS_PROVIDER_API_KEY;
 
@@ -42,35 +40,37 @@ async function sendOtp(phone, code) {
 }
 
 // --- Termii implementation ---
-// Docs: https://developers.termii.com/messaging
+// Uses Termii's plain Messaging API (POST /api/sms/send) with OUR OWN
+// already-generated `code` embedded in the message text — NOT Termii's
+// separate "Send Token" product (/api/sms/otp/send), which generates and
+// manages its own OTP internally and would never match whatever code our
+// own otp.routes.js generated, hashed, and stored for verification.
+// Docs: https://developers.termii.com/messaging-api
 async function sendViaTermii(phone, code) {
-  const res = await fetch("https://api.ng.termii.com/api/sms/otp/send", {
+  const res = await fetch("https://v4.api.termii.com/api/sms/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       api_key: process.env.SMS_PROVIDER_API_KEY,
-      message_type: "NUMERIC",
       to: phone,
       // Nigerian alphanumeric SMS sender IDs are capped at 11 characters —
       // "ADY Marketplace" (15 chars) would be rejected or truncated by most
       // gateways, so the fallback here is a shortened version. Set
-      // SMS_SENDER_ID in .env to whatever short ID you register with your
-      // provider.
+      // SMS_SENDER_ID in .env to whatever short ID you register with Termii.
       from: process.env.SMS_SENDER_ID || "ADYMarket",
-      channel: "generic",
-      pin_attempts: 3,
-      pin_time_to_live: 10, // minutes
-      pin_length: 6,
-      pin_placeholder: "< 1234 >",
-      message_text: `Your ADY Marketplace verification code is < 1234 >. Valid for 10 minutes.`,
-      pin_type: "NUMERIC",
+      sms: `Your ADY Marketplace verification code is ${code}. Valid for 10 minutes.`,
+      type: "plain",
+      // "dnd" = the transactional route. Termii's own docs specifically
+      // warn against using the "generic" (promotional) route for OTPs —
+      // it risks delivery failures or the sender ID getting blocked.
+      channel: "dnd",
     }),
   });
   const data = await res.json();
-  if (!res.ok) {
+  if (!res.ok || data.code !== "ok") {
     throw new Error(`Termii send failed: ${data.message || res.statusText}`);
   }
-  return { success: true, providerRef: data.pinId };
+  return { success: true, providerRef: data.message_id };
 }
 
 // --- Africa's Talking implementation ---
