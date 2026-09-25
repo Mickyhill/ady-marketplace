@@ -113,8 +113,7 @@ export default function App() {
           <div>
             <p className="font-semibold text-ink-900 mb-2">Contact</p>
             <ul className="space-y-2 text-xs">
-              <li className="flex items-start gap-2"><MapPin size={14} className="mt-0.5 shrink-0" /> AKSU Campus, Akwa Ibom, Nigeria</li>
-              <li className="flex items-start gap-2"><Mail size={14} className="mt-0.5 shrink-0" /> <a href="mailto:adymarketplace76@gmail.com" className="hover:underline">adymarketplace76@gmail.com</a></li>
+              <li className="flex items-start gap-2"><Mail size={14} className="mt-0.5 shrink-0" /> <a href="mailto:contact@adymarketplace.com" className="hover:underline">contact@adymarketplace.com</a></li>
               <li className="flex items-start gap-2"><Phone size={14} className="mt-0.5 shrink-0" /> +234 807 156 9877 · +234 802 511 9599</li>
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 shrink-0" aria-hidden="true">𝕏</span>
